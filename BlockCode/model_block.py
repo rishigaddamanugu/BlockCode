@@ -48,11 +48,21 @@ class ModelBlock:
             return "\n".join(code)
 
     def forward_expr(self, inputs):
-        """Return a line of forward-pass code using inputs (list of var names)."""
+        """Return a line of forward-pass code using inputs (list of var names).
+        
+        Args:
+            inputs: List of input variable names, one for each input port.
+                   If an input port has no connection, its corresponding input will be 'x'.
+        """
         if not self.sub_blocks:
             # If no inputs provided, use 'x' as default
-            input_var = inputs[0] if inputs else "x"
-            return f"self.{self.name}({input_var})"
+            if not inputs:
+                return f"self.{self.name}(x)"
+            # If only one input, use it directly
+            if len(inputs) == 1:
+                return f"self.{self.name}({inputs[0]})"
+            # For multiple inputs, pass them as separate arguments
+            return f"self.{self.name}({', '.join(inputs)})"
         else:
             # For composite blocks, chain the forward expressions
             current_input = inputs[0] if inputs else "x"
@@ -150,63 +160,6 @@ class Conv2dBlock(ModelBlock):
     def forward_expr(self, inputs):
         input_var = inputs[0] if inputs else "x"
         return f"self.{self.name}({input_var})"
-
-
-class AddBlock(ModelBlock):
-    def get_num_input_ports(self) -> int:
-        return 2  # Add requires 2 inputs
-
-    def get_num_output_ports(self) -> int:
-        return 1
-
-    def to_source_code(self):
-        return None
-
-    def forward_expr(self, inputs):
-        # For Add, we need at least one input, use 'x' for missing inputs
-        input1 = inputs[0] if inputs else "x"
-        input2 = inputs[1] if len(inputs) > 1 else "x"
-        return f"{input1} + {input2}"
-
-
-class SumBlock(ModelBlock):
-    def get_param_info(self) -> List[Tuple[str, str, Any]]:
-        return [
-            ("dim", "int", 1),
-            ("keepdim", "bool", False)
-        ]
-
-    def get_num_input_ports(self) -> int:
-        return 1
-
-    def get_num_output_ports(self) -> int:
-        return 1
-
-    def to_source_code(self):
-        return None
-
-    def forward_expr(self, inputs):
-        input_var = inputs[0] if inputs else "x"
-        dim = self.params.get("dim", 1)
-        keepdim = self.params.get("keepdim", False)
-        return f"{input_var}.sum(dim={dim}, keepdim={keepdim})"
-
-
-class MatmulBlock(ModelBlock):
-    def get_num_input_ports(self) -> int:
-        return 2  # Matrix multiplication requires 2 inputs
-
-    def get_num_output_ports(self) -> int:
-        return 1
-
-    def to_source_code(self):
-        return None
-
-    def forward_expr(self, inputs):
-        # For Matmul, we need at least one input, use 'x' for missing inputs
-        input1 = inputs[0] if inputs else "x"
-        input2 = inputs[1] if len(inputs) > 1 else "x"
-        return f"torch.matmul({input1}, {input2})"
 
 
 class CompositeBlock(ModelBlock):

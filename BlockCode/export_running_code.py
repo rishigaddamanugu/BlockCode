@@ -54,21 +54,34 @@ def run_topsort(blocks):
         return result
     return []
 
-def generate_model_architecture(model_blocks):
+def generate_model_architecture(model_blocks, data_blocks):
     """Generate the PyTorch model class code."""
     code = []
     # Add model layers
     for block in model_blocks:
         code.append(f"self.{block.label} = {block.model_block.to_source_code()}")
+    
+    # Add data instantiation
+    for block in data_blocks:
+        code.append(f"self.{block.label} = {block.run_block.generate_data()}")
+    
     return code
 
-def generate_forward_pass(model_blocks):
+def generate_forward_pass(model_blocks, data_blocks):
     """Generate the forward pass code for the model."""
     code = []
     var_names = {}
     
-    # Assign variable names
-    for i, block in enumerate(model_blocks):
+    # First, collect all blocks that are connected to model blocks
+    all_blocks = set(model_blocks)
+    for block in model_blocks:
+        for port in block.input_ports:
+            for conn in port.connections:
+                if conn.to_port == port:
+                    all_blocks.add(conn.from_port.block)
+    
+    # Assign variable names to all blocks
+    for i, block in enumerate(all_blocks):
         var_names[block] = f"x{i}"
     
     # Generate forward pass code
@@ -77,14 +90,20 @@ def generate_forward_pass(model_blocks):
         if not block.input_ports:  # If block has no input ports, use 'x'
             input_vars = ["x"]
         else:
+            # For each input port, find its connected input
             for port in block.input_ports:
+                port_input = None
                 for conn in port.connections:
                     if conn.to_port == port:
                         input_block = conn.from_port.block
-                        input_vars.append(var_names[input_block])
+                        # If the input is a data block, use self.data_block_name
+                        if input_block in data_blocks:
+                            port_input = f"self.{input_block.label}"
+                        else:
+                            port_input = var_names[input_block]
                         break
-                if not input_vars:  # If no connection found, use 'x'
-                    input_vars = ["x"]
+                # If no connection found for this port, use 'x'
+                input_vars.append(port_input if port_input else "x")
         
         # If this is the last block, name its output "output"
         if i == len(model_blocks) - 1:
@@ -147,10 +166,9 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None and not isinstance(block.run_block, DataBlock)]
 
     # Generate code sections
-    model_code = generate_model_architecture(model_blocks)
-    forward_pass = generate_forward_pass(model_blocks)
-    data_code, data_vars = generate_data_preparation(data_blocks)
-    run_code = generate_run_code(run_blocks, data_vars)
+    model_code = generate_model_architecture(model_blocks, data_blocks)
+    forward_pass = generate_forward_pass(model_blocks, data_blocks)
+    run_code = generate_run_code(run_blocks, {})
 
     # Combine all code sections
     with open(filename, "w") as f:
@@ -164,7 +182,7 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         f.write("    def __init__(self):\n")
         f.write("        super().__init__()\n")
         
-        # Write model architecture
+        # Write model architecture and data instantiation
         for line in model_code:
             f.write(f"        {line}\n")
         
@@ -176,10 +194,6 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         
         # Write main function
         f.write("def main():\n")
-        
-        # Write data preparation
-        for line in data_code:
-            f.write(f"{line}\n")
         
         # Write run code
         for line in run_code:

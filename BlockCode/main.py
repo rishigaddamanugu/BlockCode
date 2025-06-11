@@ -3,10 +3,11 @@ import pygame
 import sys
 from block import Block
 from connection import Connection
-from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CompositeBlock
+from model_block import LinearBlock, ReLUBlock, Conv2dBlock, CompositeBlock
 from data_block import RandomTensorBlock, CSVtoTensorBlock
 from export_running_code import run_and_save_running_code
 from visualization import animate_data_flow
+from operation_blocks import AddBlock, SumBlock, MatmulBlock
 from run_block import InferenceBlock, TrainingBlock, EvaluationBlock
 
 # Initialize pygame and create the main window
