@@ -63,7 +63,8 @@ def generate_model_architecture(model_blocks, data_blocks):
     
     # Add data instantiation
     for block in data_blocks:
-        code.append(f"self.{block.label} = {block.data_block.generate_data()}")
+        # Don't execute the code, just use it as a string
+        code.append(f"self.{block.label} = {block.data_block.to_source_code()}")
     
     return code
 
@@ -125,7 +126,7 @@ def generate_data_preparation(data_blocks):
     # Generate data preparation code
     for block in data_blocks:
         code.append(f"    # Generate data using {block.label}")
-        code.append(f"    {var_names[block]} = {block.run_block.generate_data()}")
+        code.append(f"    {var_names[block]} = {block.data_block.to_source_code()}")
     
     return code, var_names
 
@@ -165,10 +166,8 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     data_blocks = [block for block in result if hasattr(block, 'data_block') and block.data_block is not None]
     run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None]
 
-    # Generate code sections
     model_code = generate_model_architecture(model_blocks, data_blocks)
     forward_pass = generate_forward_pass(model_blocks, data_blocks)
-    run_code = generate_run_code(run_blocks, {})
 
     # Combine all code sections
     with open(filename, "w") as f:
@@ -191,17 +190,20 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         for line in forward_pass:
             f.write(f"        {line}\n")
         f.write("        return output\n\n")
+
         
-        # Write main function
-        f.write("def main():\n")
-        
-        # Write run code
-        for line in run_code:
-            f.write(f"{line}\n")
-        
-        # Add main call
-        f.write("\nif __name__ == '__main__':\n")
-        f.write("    main()\n")
+        if run_blocks:
+            run_code = generate_run_code(run_blocks, {})
+            # Write main function
+            f.write("def main():\n")
+            
+            # Write run code
+            for line in run_code:
+                f.write(f"{line}\n")
+            
+            # Add main call
+            f.write("\nif __name__ == '__main__':\n")
+            f.write("    main()\n")
 
     print(f"[✔] Running code exported to: {filename}")
     return True

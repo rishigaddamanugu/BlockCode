@@ -30,9 +30,13 @@ class DataBlock:
     def get_num_output_ports(self) -> int:
         """Return the number of output ports this block provides."""
         return 1  # Data blocks provide one output by default
-
+    
+    def to_source_code(self):
+        """Return the source code for the data block."""
+        raise NotImplementedError("Subclasses must implement to_source_code")
+    
     def generate_data(self):
-        """Generate a tensor/matrix."""
+        """Generate a random tensor."""
         raise NotImplementedError("Subclasses must implement generate_data")
 
 class RandomTensorBlock(DataBlock):
@@ -51,7 +55,11 @@ class RandomTensorBlock(DataBlock):
     def get_num_output_ports(self) -> int:
         """Return the number of output ports this block provides."""
         return 1  # RandomTensor provides one output tensor
-
+    
+    def to_source_code(self):
+        """Return the source code for the data block."""
+        return f"torch.randn(*{self.params['shape']})"
+    
     def generate_data(self):
         """Generate a random tensor."""
         return torch.randn(*self.params['shape'])
@@ -75,11 +83,10 @@ class CSVtoTensorBlock(DataBlock):
         """Return the number of output ports this block provides."""
         return 1  # CSVtoTensor provides one output tensor
 
+    def to_source_code(self):
+        """Return the source code for the data block."""
+        return f"torch.tensor(pd.read_csv('{self.params['file_path']}', delimiter='{self.params['delimiter']}', header=0 if {self.params['header']} else None).values)"
+    
     def generate_data(self):
-        """Load a tensor from CSV file."""
-        df = pd.read_csv(
-            self.params['file_path'],
-            delimiter=self.params['delimiter'],
-            header=0 if self.params['header'] else None
-        )
-        return torch.tensor(df.values)
+        """Generate a tensor from a CSV file."""
+        return torch.tensor(pd.read_csv(self.params['file_path'], delimiter=self.params['delimiter'], header=0 if self.params['header'] else None).values)
