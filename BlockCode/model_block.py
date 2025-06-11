@@ -170,8 +170,8 @@ class RandomTensorBlock(ModelBlock):
     def to_source_code(self):
         return f"torch.randn({self.params['shape']})"
 
-    def forward_expr(self, inputs):
-        return f"torch.randn({inputs[0]})"  # inputs[0] will be the shape parameter from the UI
+    def forward_expr(self):
+        return f"torch.randn({self.params['shape']})"  # Use internal shape parameter
 
 class CompositeBlock(ModelBlock):
     """A block that can contain other blocks."""

@@ -4,7 +4,7 @@ import sys
 from block import Block
 from connection import Connection
 from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CSVtoTensorBlock, RandomTensorBlock, CompositeBlock
-from export_code import export_model_to_file, run_model, store_model
+from export_code import run_model, save_code, run_and_save_code
 
 # Initialize pygame and create the main window
 pygame.init()
@@ -425,7 +425,7 @@ def handle_events():
                 # Check if Run Code button was clicked
                 if run_button_rect.collidepoint(pos):
                     if blocks:
-                        store_model(blocks, "model")
+                        run_and_save_code(blocks, "model")
                     return
                 
                 if showing_model_ui:

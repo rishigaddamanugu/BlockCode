@@ -61,7 +61,7 @@ def run_topsort(blocks):
         return result
     return []
 
-def export_model_to_file(blocks, filename="model.py"):
+def _export_model_to_file(blocks, filename="model.py"):
     # Run topological sort to ensure no cycles
     result = run_topsort(blocks)
     if not result:
@@ -83,7 +83,7 @@ def export_model_to_file(blocks, filename="model.py"):
         # Find input variable
         if not block.inputs:  # This is an input block
             input_var = var_names[block]
-            main_sections.append(f"        {var_names[block]} = {block.model_block.forward_expr([block.model_block.params['shape']])}")
+            main_sections.append(f"    {var_names[block]} = {block.model_block.forward_expr()}")
         else:
             # Get input from connected block
             input_block = block.inputs[0]
@@ -107,13 +107,13 @@ def export_model_to_file(blocks, filename="model.py"):
         f.write("    model = Model()\n")
         for section in main_sections:
             f.write(f"{section}\n")
-        f.write("    output = model(x)\n")
+        f.write("    output = model(x0)\n")
         f.write("    print(f'Output shape: {output.shape}')\n")
 
     print(f"[✔] Model exported to: {filename}")
     return True
 
-def store_model(blocks, model_name):
+def save_code(blocks, model_name):
     """Store the model code in the models directory with a specific name."""
     # Create models directory if it doesn't exist
     models_dir = Path("exported_code")
@@ -125,7 +125,7 @@ def store_model(blocks, model_name):
     filename = models_dir / f"{model_name}_{timestamp}.py"
     
     # Export the code
-    success = export_model_to_file(blocks, str(filename))
+    success = _export_model_to_file(blocks, str(filename))
     if success:
         print(f"[✔] Model stored as: {filename}")
     return success
@@ -136,7 +136,7 @@ def run_model(blocks):
     with tempfile.TemporaryDirectory() as temp_dir:
         # Export code to temporary directory
         temp_file = os.path.join(temp_dir, "temp_model.py")
-        if not export_model_to_file(blocks, temp_file):
+        if not _export_model_to_file(blocks, temp_file):
             return False
         
         try:
@@ -158,3 +158,15 @@ def run_model(blocks):
             print(e.stderr)
             return False
         # Temporary directory is automatically cleaned up when the context manager exits
+
+def run_and_save_code(blocks, model_name):
+    """Run the model code and save the code to a file."""
+    # # Run the model code
+    # if not run_model(blocks):
+    #     return False
+    
+    # # Save the code
+    # return save_code(blocks, model_name)
+
+    save_code(blocks, model_name)
+    run_model(blocks)
