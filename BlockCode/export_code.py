@@ -80,15 +80,23 @@ def _export_model_to_file(blocks, filename="model.py"):
         else:
             var_names[block] = f"x{len(var_names)}"
 
-        # Find input variable
+        # Find input variable(s)
         if not block.inputs:  # This is an input block
             input_var = var_names[block]
             main_sections.append(f"    {var_names[block]} = {block.model_block.forward_expr()}")
         else:
-            # Get input from connected block
-            input_block = block.inputs[0]
-            input_var = var_names[input_block]
-            code_sections.append(f"        {var_names[block]} = {block.model_block.forward_expr([input_var])}")
+            # Get inputs from connected blocks in the correct order
+            input_vars = []
+            # For each input port, find the connected block
+            for port in block.input_ports:
+                for conn in port.connections:
+                    if conn.to_port == port:  # This is the input port
+                        input_block = conn.from_port.block
+                        input_vars.append(var_names[input_block])
+                        break
+            
+            # Pass all inputs to the block's forward_expr
+            code_sections.append(f"        {var_names[block]} = {block.model_block.forward_expr(input_vars)}")
 
     # Write the model to file
     with open(filename, "w") as f:
@@ -108,6 +116,7 @@ def _export_model_to_file(blocks, filename="model.py"):
         for section in main_sections:
             f.write(f"{section}\n")
         f.write("    output = model(x0)\n")
+        f.write("    print(f'Output shape: {output}')\n")
         f.write("    print(f'Output shape: {output.shape}')\n")
 
     print(f"[✔] Model exported to: {filename}")

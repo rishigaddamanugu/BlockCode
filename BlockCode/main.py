@@ -398,7 +398,10 @@ def create_block_from_type(x, y, block_type, name, params=None):
     else:
         raise ValueError("Unsupported block type")
 
-    blocks.append(Block(x, y, model.name, model))
+    # Create block with the correct number of input and output ports from the model
+    blocks.append(Block(x, y, model.name, model, 
+                       num_inputs=model.get_num_input_ports(),
+                       num_outputs=model.get_num_output_ports()))
 
 name_input = TextInput(380, 250, 340, 40, font)
 

@@ -26,6 +26,14 @@ class ModelBlock:
         """Return list of (param_name, param_type, default_value) tuples."""
         return []
 
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 1  # Default to 1 input port
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Default to 1 output port
+
     def add_block(self, block: 'ModelBlock'):
         """Add a sub-block to this block."""
         self.sub_blocks.append(block)
@@ -72,6 +80,12 @@ class LinearBlock(ModelBlock):
             ("bias", "bool", True)
         ]
 
+    def get_num_input_ports(self) -> int:
+        return 1
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         bias_str = f", bias={self.params.get('bias', True)}"
         return f"nn.Linear({self.params['in_features']}, {self.params['out_features']}{bias_str})"
@@ -85,6 +99,12 @@ class ReLUBlock(ModelBlock):
         return [
             ("inplace", "bool", False)
         ]
+
+    def get_num_input_ports(self) -> int:
+        return 1
+
+    def get_num_output_ports(self) -> int:
+        return 1
 
     def to_source_code(self):
         inplace_str = f", inplace={self.params.get('inplace', False)}"
@@ -111,6 +131,12 @@ class Conv2dBlock(ModelBlock):
             ("padding_mode", "str", "zeros")
         ]
 
+    def get_num_input_ports(self) -> int:
+        return 1
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         params = self.params
         return f"nn.Conv2d({params['in_channels']}, {params['out_channels']}, " \
@@ -124,6 +150,12 @@ class Conv2dBlock(ModelBlock):
 
 
 class AddBlock(ModelBlock):
+    def get_num_input_ports(self) -> int:
+        return 2  # Add requires 2 inputs
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         return None
 
@@ -138,6 +170,12 @@ class SumBlock(ModelBlock):
             ("keepdim", "bool", False)
         ]
 
+    def get_num_input_ports(self) -> int:
+        return 1
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         return None
 
@@ -148,6 +186,12 @@ class SumBlock(ModelBlock):
 
 
 class MatmulBlock(ModelBlock):
+    def get_num_input_ports(self) -> int:
+        return 2  # Matrix multiplication requires 2 inputs
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         return None
 
@@ -155,6 +199,12 @@ class MatmulBlock(ModelBlock):
         return f"torch.matmul({inputs[0]}, {inputs[1]})"
 
 class CSVtoTensorBlock(ModelBlock):
+    def get_num_input_ports(self) -> int:
+        return 1
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         return None
 
@@ -167,6 +217,12 @@ class RandomTensorBlock(ModelBlock):
             ("shape", "str", "")  # Empty default value, user must specify the shape
         ]
 
+    def get_num_input_ports(self) -> int:
+        return 0  # No inputs needed, generates random tensor
+
+    def get_num_output_ports(self) -> int:
+        return 1
+
     def to_source_code(self):
         return f"torch.randn({self.params['shape']})"
 
@@ -178,6 +234,18 @@ class CompositeBlock(ModelBlock):
     def __init__(self, name: str, blocks: List[ModelBlock] = None):
         super().__init__(name)
         self.sub_blocks = blocks or []
+
+    def get_num_input_ports(self) -> int:
+        if not self.sub_blocks:
+            return 1
+        # Count input blocks (blocks with no inputs)
+        return len([block for block in self.sub_blocks if not block.inputs])
+
+    def get_num_output_ports(self) -> int:
+        if not self.sub_blocks:
+            return 1
+        # Count output blocks (blocks with no outputs)
+        return len([block for block in self.sub_blocks if not block.outputs])
 
     def to_source_code(self):
         if not self.sub_blocks:
