@@ -5,7 +5,7 @@ from block import Block
 from connection import Connection
 from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CompositeBlock
 from data_block import RandomTensorBlock, CSVtoTensorBlock
-from export_code import run_model, save_code, run_and_save_code
+from export_model_code import run_model, save_code, run_and_save_code
 from visualization import animate_data_flow
 
 # Initialize pygame and create the main window
