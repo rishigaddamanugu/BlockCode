@@ -1,5 +1,3 @@
-# model_blocks.py
-
 import torch
 import torch.nn as nn
 from typing import Dict, Any, List, Tuple
@@ -52,10 +50,12 @@ class ModelBlock:
     def forward_expr(self, inputs):
         """Return a line of forward-pass code using inputs (list of var names)."""
         if not self.sub_blocks:
-            raise NotImplementedError()
+            # If no inputs provided, use 'x' as default
+            input_var = inputs[0] if inputs else "x"
+            return f"self.{self.name}({input_var})"
         else:
             # For composite blocks, chain the forward expressions
-            current_input = inputs[0]
+            current_input = inputs[0] if inputs else "x"
             for block in self.sub_blocks:
                 current_input = block.forward_expr([current_input])
             return current_input
@@ -91,7 +91,8 @@ class LinearBlock(ModelBlock):
         return f"nn.Linear({self.params['in_features']}, {self.params['out_features']}{bias_str})"
 
     def forward_expr(self, inputs):
-        return f"self.{self.name}({inputs[0]})"
+        input_var = inputs[0] if inputs else "x"
+        return f"self.{self.name}({input_var})"
 
 
 class ReLUBlock(ModelBlock):
@@ -111,7 +112,8 @@ class ReLUBlock(ModelBlock):
         return f"nn.ReLU({inplace_str})"
 
     def forward_expr(self, inputs):
-        return f"self.{self.name}({inputs[0]})"
+        input_var = inputs[0] if inputs else "x"
+        return f"self.{self.name}({input_var})"
 
 
 class Conv2dBlock(ModelBlock):
@@ -146,7 +148,8 @@ class Conv2dBlock(ModelBlock):
                f"padding_mode='{params.get('padding_mode', 'zeros')}')"
 
     def forward_expr(self, inputs):
-        return f"self.{self.name}({inputs[0]})"
+        input_var = inputs[0] if inputs else "x"
+        return f"self.{self.name}({input_var})"
 
 
 class AddBlock(ModelBlock):
@@ -160,7 +163,10 @@ class AddBlock(ModelBlock):
         return None
 
     def forward_expr(self, inputs):
-        return f"{inputs[0]} + {inputs[1]}"
+        # For Add, we need at least one input, use 'x' for missing inputs
+        input1 = inputs[0] if inputs else "x"
+        input2 = inputs[1] if len(inputs) > 1 else "x"
+        return f"{input1} + {input2}"
 
 
 class SumBlock(ModelBlock):
@@ -180,9 +186,10 @@ class SumBlock(ModelBlock):
         return None
 
     def forward_expr(self, inputs):
+        input_var = inputs[0] if inputs else "x"
         dim = self.params.get("dim", 1)
         keepdim = self.params.get("keepdim", False)
-        return f"{inputs[0]}.sum(dim={dim}, keepdim={keepdim})"
+        return f"{input_var}.sum(dim={dim}, keepdim={keepdim})"
 
 
 class MatmulBlock(ModelBlock):
@@ -196,38 +203,11 @@ class MatmulBlock(ModelBlock):
         return None
 
     def forward_expr(self, inputs):
-        return f"torch.matmul({inputs[0]}, {inputs[1]})"
+        # For Matmul, we need at least one input, use 'x' for missing inputs
+        input1 = inputs[0] if inputs else "x"
+        input2 = inputs[1] if len(inputs) > 1 else "x"
+        return f"torch.matmul({input1}, {input2})"
 
-class CSVtoTensorBlock(ModelBlock):
-    def get_num_input_ports(self) -> int:
-        return 1
-
-    def get_num_output_ports(self) -> int:
-        return 1
-
-    def to_source_code(self):
-        return None
-
-    def forward_expr(self, inputs):
-        return f"torch.tensor({inputs[0]})"
-
-class RandomTensorBlock(ModelBlock):
-    def get_param_info(self) -> List[Tuple[str, str, Any]]:
-        return [
-            ("shape", "str", "")  # Empty default value, user must specify the shape
-        ]
-
-    def get_num_input_ports(self) -> int:
-        return 0  # No inputs needed, generates random tensor
-
-    def get_num_output_ports(self) -> int:
-        return 1
-
-    def to_source_code(self):
-        return f"torch.randn({self.params['shape']})"
-
-    def forward_expr(self):
-        return f"torch.randn({self.params['shape']})"  # Use internal shape parameter
 
 class CompositeBlock(ModelBlock):
     """A block that can contain other blocks."""
@@ -258,11 +238,11 @@ class CompositeBlock(ModelBlock):
 
     def forward_expr(self, inputs):
         if not self.sub_blocks:
-            return inputs[0]
+            return inputs[0] if inputs else "x"
         
         # Create a mapping of block names to their outputs
         var_names = {}
-        current_input = inputs[0]
+        current_input = inputs[0] if inputs else "x"
         
         # Process each block in sequence
         for block in self.sub_blocks:

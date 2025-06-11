@@ -48,75 +48,87 @@ def run_topsort(blocks):
                     return None
         
         result.reverse()
-        # Print block labels
         print("Topological order:", " -> ".join(block.label for block in result))
-        # Print model information if available
-        model_info = []
-        for block in result:
-            if hasattr(block, 'model_block') and hasattr(block.model_block, 'to_dict'):
-                model_info.append(str(block.model_block.to_dict()))
-            else:
-                model_info.append("No model info")
-        print("Model info:", " -> ".join(model_info))
         return result
     return []
 
+def generate_model_architecture(model_blocks):
+    """Generate the PyTorch model class code."""
+    code = []
+    # Add model layers
+    for block in model_blocks:
+        code.append(f"self.{block.label} = {block.model_block.to_source_code()}")
+    return code
+
+def generate_forward_pass(model_blocks):
+    """Generate the forward pass code for the model."""
+    code = []
+    var_names = {}
+    
+    # Assign variable names
+    for i, block in enumerate(model_blocks):
+        if not block.outputs:  # Output block
+            var_names[block] = "output"
+        else:
+            var_names[block] = f"x{i}"
+    
+    # Generate forward pass code
+    for block in model_blocks:
+        input_vars = []
+        if not block.input_ports:  # If block has no input ports, use 'x'
+            input_vars = ["x"]
+        else:
+            for port in block.input_ports:
+                for conn in port.connections:
+                    if conn.to_port == port:
+                        input_block = conn.from_port.block
+                        input_vars.append(var_names[input_block])
+                        break
+                if not input_vars:  # If no connection found, use 'x'
+                    input_vars = ["x"]
+        code.append(f"{var_names[block]} = {block.model_block.forward_expr(input_vars)}")
+    
+    return code
+
 def _export_model_to_file(blocks, filename="model.py"):
+    """Export the complete model code to a file."""
     # Run topological sort to ensure no cycles
     result = run_topsort(blocks)
     if not result:
         print("Error: Graph contains cycles")
         return False
 
-    # Build variable names and code sections
-    var_names = {}
-    code_sections = []
-    main_sections = []
-    input_var = None
+    # Filter out non-model blocks
+    model_blocks = [block for block in result if hasattr(block, 'model_block') and block.model_block is not None]
 
-    for block in result:
-        if not block.outputs:  # This is an output block
-            var_names[block] = "output"
-        else:
-            var_names[block] = f"x{len(var_names)}"
+    # Generate code sections
+    model_code = generate_model_architecture(model_blocks)
+    forward_pass = generate_forward_pass(model_blocks)
 
-        # Find input variable(s)
-        if not block.inputs:  # This is an input block
-            input_var = var_names[block]
-            main_sections.append(f"    {var_names[block]} = {block.model_block.forward_expr()}")
-        else:
-            # Get inputs from connected blocks in the correct order
-            input_vars = []
-            # For each input port, find the connected block
-            for port in block.input_ports:
-                for conn in port.connections:
-                    if conn.to_port == port:  # This is the input port
-                        input_block = conn.from_port.block
-                        input_vars.append(var_names[input_block])
-                        break
-            
-            # Pass all inputs to the block's forward_expr
-            code_sections.append(f"        {var_names[block]} = {block.model_block.forward_expr(input_vars)}")
-
-    # Write the model to file
+    # Combine all code sections
     with open(filename, "w") as f:
+        # Write imports and class definition
         f.write("import torch\n")
         f.write("import torch.nn as nn\n\n")
         f.write("class Model(nn.Module):\n")
         f.write("    def __init__(self):\n")
         f.write("        super().__init__()\n")
-        for block in result:
-            f.write(f"        self.{block.label} = {block.model_block.to_source_code()}\n")
+        
+        # Write model architecture
+        for line in model_code:
+            f.write(f"        {line}\n")
+        
+        # Write forward method
         f.write("\n    def forward(self, x):\n")
-        for section in code_sections:
-            f.write(f"{section}\n")
+        for line in forward_pass:
+            f.write(f"        {line}\n")  # Add extra indentation for forward pass lines
         f.write("        return output\n\n")
+        
+        # Add simple test code
         f.write("if __name__ == '__main__':\n")
         f.write("    model = Model()\n")
-        for section in main_sections:
-            f.write(f"{section}\n")
-        f.write("    output = model(x0)\n")
-        f.write("    print(f'Output shape: {output}')\n")
+        f.write("    x = torch.randn(1, 64)  # Example input\n")
+        f.write("    output = model(x)\n")
         f.write("    print(f'Output shape: {output.shape}')\n")
 
     print(f"[✔] Model exported to: {filename}")
@@ -166,16 +178,12 @@ def run_model(blocks):
             print("\nError running model:")
             print(e.stderr)
             return False
-        # Temporary directory is automatically cleaned up when the context manager exits
 
 def run_and_save_code(blocks, model_name):
-    """Run the model code and save the code to a file."""
-    # # Run the model code
-    # if not run_model(blocks):
-    #     return False
-    
-    # # Save the code
-    # return save_code(blocks, model_name)
+    """Run the model and save its code."""
+    # if run_model(blocks):
+    #     return save_code(blocks, model_name)
+    # return False
 
     save_code(blocks, model_name)
     run_model(blocks)

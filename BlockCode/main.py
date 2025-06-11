@@ -3,7 +3,8 @@ import pygame
 import sys
 from block import Block
 from connection import Connection
-from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CSVtoTensorBlock, RandomTensorBlock, CompositeBlock
+from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CompositeBlock
+from data_block import RandomTensorBlock, CSVtoTensorBlock
 from export_code import run_model, save_code, run_and_save_code
 from visualization import animate_data_flow
 
@@ -41,7 +42,8 @@ model_name = ""
 categories = {
     "Layers": ["Linear Layer", "ReLU", "Conv2D"],
     "Data": ["CSVtoTensor", "RandomTensor"],
-    "Operations": ["Add", "Sum", "Matmul"]
+    "Operations": ["Add", "Sum", "Matmul"],
+    "Inference": ["RunModel"]
 }
 
 model_rects = []
@@ -148,12 +150,12 @@ def draw_model_ui():
     s.set_alpha(230)  # More opaque background
     s.fill(DARK)
     screen.blit(s, (350, 100))  # Centered position
-
+    
     # Draw title
     title = title_font.render("Create New Block", True, WHITE)
     title_rect = title.get_rect(centerx=600, y=120)
     screen.blit(title, title_rect)
-
+    
     # Calculate center position for content
     center_x = 600
     start_y = 170
@@ -204,7 +206,7 @@ def draw_model_ui():
         back_text_rect = back_text.get_rect(centerx=back_rect.centerx, centery=back_rect.centery)
         screen.blit(back_text, back_text_rect)
         model_rects.append((back_rect, "back"))
-
+        
     else:
         # Draw parameter inputs section
         type_label = font.render(f"Configure {selected_model}:", True, WHITE)
@@ -239,7 +241,7 @@ def draw_model_ui():
         back_text_rect = back_text.get_rect(centerx=back_rect.centerx, centery=back_rect.centery)
         screen.blit(back_text, back_text_rect)
         model_rects.append((back_rect, "back"))
-
+        
         # Draw help text
         help_text = font.render("Press Enter to create, Esc to cancel", True, GRAY)
         help_rect = help_text.get_rect(centerx=center_x, y=y + 60)
@@ -300,7 +302,7 @@ def handle_model_ui_events(event):
                         elif selected_model == "Matmul":
                             param_info = MatmulBlock.get_param_info(None)
                         elif selected_model == "CSVtoTensor":
-                            param_info = []  # Add CSVtoTensor parameters when implemented
+                            param_info = CSVtoTensorBlock.get_param_info(None)
                         elif selected_model == "RandomTensor":
                             param_info = RandomTensorBlock.get_param_info(None)
                         else:
@@ -377,32 +379,68 @@ def create_block_from_type(x, y, block_type, name, params=None):
     if params is None:
         params = {}
         
-    if block_type == "Linear Layer":
+    # Handle RunBlocks (Data blocks)
+    if block_type == "RandomTensor":
         # Ensure required parameters have default values if not provided
-        if 'in_features' not in params:
-            params['in_features'] = 128
-        if 'out_features' not in params:
-            params['out_features'] = 64
-        model = LinearBlock(name, params)
-    elif block_type == "ReLU":
-        model = ReLUBlock(name, params)
-    elif block_type == "Conv2D":
-        model = Conv2dBlock(name, params)
-    elif block_type == "Add":
-        model = AddBlock(name, params)
-    elif block_type == "Sum":
-        model = SumBlock(name, params)
-    elif block_type == "Matmul":
-        model = MatmulBlock(name, params)
-    elif block_type == "RandomTensor":
-        model = RandomTensorBlock(name, params)
+        if 'shape' not in params:
+            params['shape'] = (784,)
+        if 'num_samples' not in params:
+            params['num_samples'] = 1000
+        if 'val_split' not in params:
+            params['val_split'] = 0.2
+        if 'num_classes' not in params:
+            params['num_classes'] = 10
+        run_block = RandomTensorBlock(name, params)
+        model_block = None
+        num_inputs = 0
+    elif block_type == "CSVtoTensor":
+        # Ensure required parameters have default values if not provided
+        if 'file_path' not in params:
+            params['file_path'] = ""
+        if 'label_column' not in params:
+            params['label_column'] = ""
+        if 'val_split' not in params:
+            params['val_split'] = 0.2
+        if 'delimiter' not in params:
+            params['delimiter'] = ","
+        if 'header' not in params:
+            params['header'] = True
+        run_block = CSVtoTensorBlock(name, params)
+        model_block = None
+        num_inputs = 0
+    # Handle RunModel block
+    elif block_type == "RunModel":
+        run_block = None
+        model_block = None
+        num_inputs = 1  # Takes one input tensor
+    # Handle ModelBlocks
     else:
-        raise ValueError("Unsupported block type")
+        run_block = None
+        if block_type == "Linear Layer":
+            if 'in_features' not in params:
+                params['in_features'] = 128
+            if 'out_features' not in params:
+                params['out_features'] = 64
+            model_block = LinearBlock(name, params)
+        elif block_type == "ReLU":
+            model_block = ReLUBlock(name, params)
+        elif block_type == "Conv2D":
+            model_block = Conv2dBlock(name, params)
+        elif block_type == "Add":
+            model_block = AddBlock(name, params)
+        elif block_type == "Sum":
+            model_block = SumBlock(name, params)
+        elif block_type == "Matmul":
+            model_block = MatmulBlock(name, params)
+        else:
+            raise ValueError("Unsupported block type")
+        num_inputs = model_block.get_num_input_ports()
 
-    # Create block with the correct number of input and output ports from the model
-    blocks.append(Block(x, y, model.name, model, 
-                       num_inputs=model.get_num_input_ports(),
-                       num_outputs=model.get_num_output_ports()))
+    # All blocks have one output for now
+    num_outputs = 1
+    
+    # Create the block with all parameters
+    blocks.append(Block(x, y, name, model_block, run_block, num_inputs, num_outputs))
 
 name_input = TextInput(380, 250, 340, 40, font)
 
