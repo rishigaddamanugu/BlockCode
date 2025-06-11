@@ -312,16 +312,21 @@ def handle_model_ui_events(event):
                             param_info = RandomTensorBlock.get_param_info(None)
                         elif selected_model == "CSVtoTensor":
                             param_info = CSVtoTensorBlock.get_param_info(None)
+                        elif selected_model == "Inference":
+                            param_info = InferenceBlock.get_param_info(None)
+                        elif selected_model == "Training":
+                            param_info = TrainingBlock.get_param_info(None)
+                        elif selected_model == "Evaluation":
+                            param_info = EvaluationBlock.get_param_info(None)
                         else:
                             param_info = []
                         
+                        # Create input boxes for each parameter
+                        y = 250
                         for param_name, param_type, default_value in param_info:
-                            param_inputs.append(TextInput(0, 0, 300, 40, font, param_name, param_type, default_value))
-                            current_params[param_name] = default_value
-                        
-                        name_input.active = True
-                        name_input.color = HIGHLIGHT
-                        name_input.text = ""
+                            input_box = TextInput(380, y, 340, 40, font, param_name, param_type, default_value)
+                            param_inputs.append(input_box)
+                            y += 60
                     return
 
         # Handle parameter configuration (third level)

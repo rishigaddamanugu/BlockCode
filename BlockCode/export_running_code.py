@@ -72,7 +72,7 @@ def generate_forward_pass(model_blocks):
         var_names[block] = f"x{i}"
     
     # Generate forward pass code
-    for block in model_blocks:
+    for i, block in enumerate(model_blocks):
         input_vars = []
         if not block.input_ports:  # If block has no input ports, use 'x'
             input_vars = ["x"]
@@ -85,7 +85,12 @@ def generate_forward_pass(model_blocks):
                         break
                 if not input_vars:  # If no connection found, use 'x'
                     input_vars = ["x"]
-        code.append(f"{var_names[block]} = {block.model_block.forward_expr(input_vars)}")
+        
+        # If this is the last block, name its output "output"
+        if i == len(model_blocks) - 1:
+            code.append(f"output = {block.model_block.forward_expr(input_vars)}")
+        else:
+            code.append(f"{var_names[block]} = {block.model_block.forward_expr(input_vars)}")
     
     return code
 
