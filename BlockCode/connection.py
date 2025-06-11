@@ -1,13 +1,17 @@
 # Import pygame library for graphics functionality
 import pygame
+import math
 # Define white color in RGB format (Red, Green, Blue)
 WHITE = (255, 255, 255)
+GLOW = (100, 200, 255)  # Brighter color for active connections
 
 class Connection:
     def __init__(self, from_port, to_port):
         # Store the source and destination ports of the connection
         self.from_port = from_port
         self.to_port = to_port
+        self.active = False  # Track if this connection is currently active
+        self.glow_intensity = 0  # Track glow animation state
 
         # Get the blocks that these ports belong to
         from_block = from_port.block
@@ -25,5 +29,19 @@ class Connection:
         to_port.connections.append(self)
 
     def draw(self, surface):
-        # Draw a white line between the two ports with a thickness of 3 pixels
-        pygame.draw.line(surface, WHITE, self.from_port.position, self.to_port.position, 3)
+        # Draw the connection with glow effect if active
+        if self.active:
+            # Animate glow intensity
+            self.glow_intensity = (self.glow_intensity + 0.1) % 1.0
+            # Calculate glow color based on intensity
+            glow_factor = abs(math.sin(self.glow_intensity * math.pi))
+            glow_color = (
+                int(GLOW[0] * glow_factor + WHITE[0] * (1 - glow_factor)),
+                int(GLOW[1] * glow_factor + WHITE[1] * (1 - glow_factor)),
+                int(GLOW[2] * glow_factor + WHITE[2] * (1 - glow_factor))
+            )
+            # Draw thicker line with glow color
+            pygame.draw.line(surface, glow_color, self.from_port.position, self.to_port.position, 5)
+        else:
+            # Draw normal white line
+            pygame.draw.line(surface, WHITE, self.from_port.position, self.to_port.position, 3)

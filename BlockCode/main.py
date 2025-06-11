@@ -5,6 +5,7 @@ from block import Block
 from connection import Connection
 from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CSVtoTensorBlock, RandomTensorBlock, CompositeBlock
 from export_code import run_model, save_code, run_and_save_code
+from visualization import animate_data_flow
 
 # Initialize pygame and create the main window
 pygame.init()
@@ -202,7 +203,7 @@ def draw_model_ui():
         back_text = font.render("Back", True, WHITE)
         back_text_rect = back_text.get_rect(centerx=back_rect.centerx, centery=back_rect.centery)
         screen.blit(back_text, back_text_rect)
-        category_rects.append((back_rect, "back"))
+        model_rects.append((back_rect, "back"))
 
     else:
         # Draw parameter inputs section
@@ -425,10 +426,13 @@ def handle_events():
                 
             # Handle left-click for selection
             elif event.button == 1:  # Left click
-                # Check if Run Code button was clicked
+                # Handle run button click
                 if run_button_rect.collidepoint(pos):
                     if blocks:
+                        animate_data_flow(blocks, screen, font, clock, run_button_rect, connections)
+                        # Run and save the model
                         run_and_save_code(blocks, "model")
+                            
                     return
                 
                 if showing_model_ui:
