@@ -19,7 +19,7 @@ class OperationBlock(ModelBlock):
 
     def to_source_code(self):
         """Operations don't need to be instantiated in __init__."""
-        return ""
+        return None
 
     def get_mandatory_params(self) -> List[str]:
         """Operations typically don't have mandatory parameters."""

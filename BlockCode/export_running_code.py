@@ -63,7 +63,7 @@ def generate_model_architecture(model_blocks, data_blocks):
     
     # Add data instantiation
     for block in data_blocks:
-        code.append(f"self.{block.label} = {block.run_block.generate_data()}")
+        code.append(f"self.{block.label} = {block.data_block.generate_data()}")
     
     return code
 
@@ -162,8 +162,8 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
 
     # Separate blocks by type
     model_blocks = [block for block in result if hasattr(block, 'model_block') and block.model_block is not None]
-    data_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None and isinstance(block.run_block, DataBlock)]
-    run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None and not isinstance(block.run_block, DataBlock)]
+    data_blocks = [block for block in result if hasattr(block, 'data_block') and block.data_block is not None]
+    run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None]
 
     # Generate code sections
     model_code = generate_model_architecture(model_blocks, data_blocks)

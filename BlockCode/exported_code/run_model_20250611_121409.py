@@ -5,7 +5,7 @@ from typing import Dict, Any, List, Tuple
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.ADD = None
+        self.ADD = 
 
     def forward(self, x):
         output = x2 + x1
