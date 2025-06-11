@@ -3,6 +3,8 @@ import shutil
 import tempfile
 import subprocess
 from pathlib import Path
+from typing import List, Dict, Tuple
+from data_block import DataBlock
 
 def dfs_topsort(block, visited=None, temp_visited=None, result=None):
     if visited is None:
@@ -52,6 +54,41 @@ def run_topsort(blocks):
         return result
     return []
 
+def generate_model_architecture(model_blocks):
+    """Generate the PyTorch model class code."""
+    code = []
+    # Add model layers
+    for block in model_blocks:
+        code.append(f"self.{block.label} = {block.model_block.to_source_code()}")
+    return code
+
+def generate_forward_pass(model_blocks):
+    """Generate the forward pass code for the model."""
+    code = []
+    var_names = {}
+    
+    # Assign variable names
+    for i, block in enumerate(model_blocks):
+        var_names[block] = f"x{i}"
+    
+    # Generate forward pass code
+    for block in model_blocks:
+        input_vars = []
+        if not block.input_ports:  # If block has no input ports, use 'x'
+            input_vars = ["x"]
+        else:
+            for port in block.input_ports:
+                for conn in port.connections:
+                    if conn.to_port == port:
+                        input_block = conn.from_port.block
+                        input_vars.append(var_names[input_block])
+                        break
+                if not input_vars:  # If no connection found, use 'x'
+                    input_vars = ["x"]
+        code.append(f"{var_names[block]} = {block.model_block.forward_expr(input_vars)}")
+    
+    return code
+
 def generate_data_preparation(data_blocks):
     """Generate code for data preparation using data blocks."""
     code = []
@@ -69,18 +106,25 @@ def generate_data_preparation(data_blocks):
     return code, var_names
 
 def generate_run_code(run_blocks, data_vars):
-    """Generate code for running blocks (training/inference/evaluation)."""
+    """Generate code for running the model using run blocks."""
     code = []
     
-    # Generate run code
+    # Generate code for each run block
     for block in run_blocks:
-        code.append(f"    # Run {block.label}")
-        # Get the code from the run block
-        block_code = block.run_block.generate_code()
-        # Replace data_0, data_1 etc. with actual variable names
-        for i, (_, var_name) in enumerate(data_vars.items()):
-            block_code = [line.replace(f"data_{i}", var_name) for line in block_code]
-        code.extend(block_code)
+        if hasattr(block, 'run_block'):
+            # Find model and data blocks from inputs
+            model_block = None
+            data_block = None
+            for input_block in block.inputs:
+                if hasattr(input_block, 'model_block') and input_block.model_block:
+                    model_block = input_block.model_block
+                elif hasattr(input_block, 'data_block') and input_block.data_block:
+                    data_block = input_block.data_block
+            
+            # Generate code with the found blocks
+            run_code = block.run_block.generate_code(model_block, data_block)
+            code.extend(run_code)
+            code.append("")  # Add blank line between blocks
     
     return code
 
@@ -93,10 +137,13 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         return False
 
     # Separate blocks by type
-    data_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None]
-    run_blocks = [block for block in result if not hasattr(block, 'run_block') and not hasattr(block, 'model_block')]
+    model_blocks = [block for block in result if hasattr(block, 'model_block') and block.model_block is not None]
+    data_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None and isinstance(block.run_block, DataBlock)]
+    run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None and not isinstance(block.run_block, DataBlock)]
 
     # Generate code sections
+    model_code = generate_model_architecture(model_blocks)
+    forward_pass = generate_forward_pass(model_blocks)
     data_code, data_vars = generate_data_preparation(data_blocks)
     run_code = generate_run_code(run_blocks, data_vars)
 
@@ -105,7 +152,22 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         # Write imports
         f.write("import torch\n")
         f.write("import torch.nn as nn\n")
-        f.write("from model import Model\n\n")
+        f.write("from typing import Dict, Any, List, Tuple\n\n")
+        
+        # Write model class
+        f.write("class Model(nn.Module):\n")
+        f.write("    def __init__(self):\n")
+        f.write("        super().__init__()\n")
+        
+        # Write model architecture
+        for line in model_code:
+            f.write(f"        {line}\n")
+        
+        # Write forward method
+        f.write("\n    def forward(self, x):\n")
+        for line in forward_pass:
+            f.write(f"        {line}\n")
+        f.write("        return output\n\n")
         
         # Write main function
         f.write("def main():\n")

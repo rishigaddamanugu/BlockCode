@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from model_block import ModelBlock
+from data_block import DataBlock
 from typing import Dict, Any, List, Tuple
 
 class RunBlock:
@@ -23,8 +24,21 @@ class RunBlock:
         """Return list of (param_name, param_type, default_value) tuples."""
         return []
 
-    def generate_code(self):
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 2  # Run blocks take both model and data inputs
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Run blocks provide one output by default
+
+    def generate_code(self, model_block, data_block):
         """Generate the code for this block."""
+        if not model_block:
+            raise ValueError(f"No model block provided to {self.name}")
+        if not data_block:
+            raise ValueError(f"No data block provided to {self.name}")
+            
         raise NotImplementedError("Subclasses must implement generate_code")
 
 class InferenceBlock(RunBlock):
@@ -38,7 +52,15 @@ class InferenceBlock(RunBlock):
             ("model_path", "str", None),  # For loading saved models
         ]
 
-    def generate_code(self):
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 2  # Takes both model and data inputs
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Provides model predictions
+
+    def generate_code(self, model_block, data_block):
         params = self.params
         code = []
         code.append("    # Setup model and device")
@@ -54,8 +76,9 @@ class InferenceBlock(RunBlock):
         code.append("    # Run inference")
         code.append("    with torch.no_grad():")
         code.append(f"        batch_size = {params['batch_size']}")
-        code.append("        # Assuming data_0 is the input tensor")
-        code.append("        output = model(data_0)")
+        code.append(f"        # Using data from {data_block.name}")
+        code.append(f"        data = {data_block.generate_data()}")
+        code.append("        output = model(data)")
         code.append("    print(f'Inference output shape: {output.shape}')")
         return code
 
@@ -73,7 +96,15 @@ class TrainingBlock(RunBlock):
             ("save_path", "str", None),  # For saving trained models
         ]
 
-    def generate_code(self):
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 2  # Takes both model and data inputs
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Provides trained model
+
+    def generate_code(self, model_block, data_block):
         params = self.params
         code = []
         code.append("    # Setup model, device, and optimizer")
@@ -94,9 +125,10 @@ class TrainingBlock(RunBlock):
         code.append(f"    epochs = {params['epochs']}")
         code.append(f"    batch_size = {params['batch_size']}")
         code.append("    for epoch in range(epochs):")
-        code.append("        # Assuming data_0 is the input tensor and data_1 is the target")
+        code.append(f"        # Using data from {data_block.name}")
+        code.append(f"        data = {data_block.generate_data()}")
         code.append("        optimizer.zero_grad()")
-        code.append("        output = model(data_0)")
+        code.append("        output = model(data)")
         code.append("        loss = nn.functional.mse_loss(output, data_1)  # Example loss")
         code.append("        loss.backward()")
         code.append("        optimizer.step()")
@@ -120,7 +152,15 @@ class EvaluationBlock(RunBlock):
             ("device", "str", "cpu"),
         ]
 
-    def generate_code(self):
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 2  # Takes both model and data inputs
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Provides evaluation metrics
+
+    def generate_code(self, model_block, data_block):
         params = self.params
         code = []
         code.append("    # Setup model and device")
@@ -132,8 +172,9 @@ class EvaluationBlock(RunBlock):
         code.append("    # Evaluation")
         code.append("    with torch.no_grad():")
         code.append(f"        batch_size = {params['batch_size']}")
-        code.append("        # Assuming data_0 is the input tensor and data_1 is the target")
-        code.append("        output = model(data_0)")
+        code.append(f"        # Using data from {data_block.name}")
+        code.append(f"        data = {data_block.generate_data()}")
+        code.append("        output = model(data)")
         
         # Add metric computations
         metrics = params.get('metrics', ['accuracy'])
@@ -182,8 +223,8 @@ class EvaluationBlock(RunBlock):
 #     })
     
 #     # Generate the code for training and inference
-#     training_code = training.generate_code()
-#     inference_code = inference.generate_code()
+#     training_code = training.generate_code(model, data)
+#     inference_code = inference.generate_code(model, data)
     
 #     print("Training code:")
 #     print(training_code)

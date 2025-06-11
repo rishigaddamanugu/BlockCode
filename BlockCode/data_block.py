@@ -23,6 +23,14 @@ class DataBlock:
         """Return list of (param_name, param_type, default_value) tuples."""
         return []
 
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 0  # Data blocks don't take inputs by default
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # Data blocks provide one output by default
+
     def generate_data(self):
         """Generate a tensor/matrix."""
         raise NotImplementedError("Subclasses must implement generate_data")
@@ -33,8 +41,16 @@ class RandomTensorBlock(DataBlock):
 
     def get_param_info(self):
         return [
-            ("shape", "tuple", (784,)),  # Shape of the tensor
+            ("shape", "tuple", (64, 64)),  # Shape of the tensor
         ]
+
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 0  # RandomTensor doesn't take any inputs
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # RandomTensor provides one output tensor
 
     def generate_data(self):
         """Generate a random tensor."""
@@ -50,6 +66,14 @@ class CSVtoTensorBlock(DataBlock):
             ("delimiter", "str", ","),  # CSV delimiter
             ("header", "bool", True)  # Whether CSV has header
         ]
+
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 1  # CSVtoTensor takes one input (the file path)
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # CSVtoTensor provides one output tensor
 
     def generate_data(self):
         """Load a tensor from CSV file."""

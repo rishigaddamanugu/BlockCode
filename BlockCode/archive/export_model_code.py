@@ -67,10 +67,7 @@ def generate_forward_pass(model_blocks):
     
     # Assign variable names
     for i, block in enumerate(model_blocks):
-        if not block.outputs:  # Output block
-            var_names[block] = "output"
-        else:
-            var_names[block] = f"x{i}"
+        var_names[block] = f"x{i}"
     
     # Generate forward pass code
     for block in model_blocks:

@@ -5,8 +5,9 @@ from block import Block
 from connection import Connection
 from model_block import LinearBlock, ReLUBlock, Conv2dBlock, AddBlock, SumBlock, MatmulBlock, CompositeBlock
 from data_block import RandomTensorBlock, CSVtoTensorBlock
-from export_model_code import run_model, save_code, run_and_save_code
+from export_running_code import run_and_save_running_code
 from visualization import animate_data_flow
+from run_block import InferenceBlock, TrainingBlock, EvaluationBlock
 
 # Initialize pygame and create the main window
 pygame.init()
@@ -41,9 +42,9 @@ model_name = ""
 # Define categories and their options
 categories = {
     "Layers": ["Linear Layer", "ReLU", "Conv2D"],
-    "Data": ["CSVtoTensor", "RandomTensor"],
+    "Data": ["RandomTensor", "CSVtoTensor"],
     "Operations": ["Add", "Sum", "Matmul"],
-    "Inference": ["RunModel"]
+    "Run": ["Inference", "Training", "Evaluation"]
 }
 
 model_rects = []
@@ -75,6 +76,12 @@ class TextInput:
                 return 0
         elif self.param_type == "bool":
             return self.text.lower() in ("true", "1", "yes")
+        elif self.param_type == "tuple":
+            try:
+                # Split by commas and convert each element to int
+                return tuple(int(x.strip()) for x in self.text.split(','))
+            except ValueError:
+                return (64, 64)  # Default shape if parsing fails
         return self.text
 
     def handle_event(self, event):
@@ -301,10 +308,10 @@ def handle_model_ui_events(event):
                             param_info = SumBlock.get_param_info(None)
                         elif selected_model == "Matmul":
                             param_info = MatmulBlock.get_param_info(None)
-                        elif selected_model == "CSVtoTensor":
-                            param_info = CSVtoTensorBlock.get_param_info(None)
                         elif selected_model == "RandomTensor":
                             param_info = RandomTensorBlock.get_param_info(None)
+                        elif selected_model == "CSVtoTensor":
+                            param_info = CSVtoTensorBlock.get_param_info(None)
                         else:
                             param_info = []
                         
@@ -376,71 +383,83 @@ def handle_model_ui_events(event):
                     return
 
 def create_block_from_type(x, y, block_type, name, params=None):
+    run_block = None
+    model_block = None
+    data_block = None
+
     if params is None:
         params = {}
-        
-    # Handle RunBlocks (Data blocks)
+    
+    # Get parameter info and set defaults for any missing parameters
     if block_type == "RandomTensor":
-        # Ensure required parameters have default values if not provided
-        if 'shape' not in params:
-            params['shape'] = (784,)
-        if 'num_samples' not in params:
-            params['num_samples'] = 1000
-        if 'val_split' not in params:
-            params['val_split'] = 0.2
-        if 'num_classes' not in params:
-            params['num_classes'] = 10
-        run_block = RandomTensorBlock(name, params)
-        model_block = None
-        num_inputs = 0
+        param_info = RandomTensorBlock.get_param_info(None)
+        data_block = RandomTensorBlock(name, params)
+        num_inputs = data_block.get_num_input_ports()
+        num_outputs = data_block.get_num_output_ports()
     elif block_type == "CSVtoTensor":
-        # Ensure required parameters have default values if not provided
-        if 'file_path' not in params:
-            params['file_path'] = ""
-        if 'label_column' not in params:
-            params['label_column'] = ""
-        if 'val_split' not in params:
-            params['val_split'] = 0.2
-        if 'delimiter' not in params:
-            params['delimiter'] = ","
-        if 'header' not in params:
-            params['header'] = True
-        run_block = CSVtoTensorBlock(name, params)
-        model_block = None
-        num_inputs = 0
-    # Handle RunModel block
-    elif block_type == "RunModel":
-        run_block = None
-        model_block = None
-        num_inputs = 1  # Takes one input tensor
-    # Handle ModelBlocks
-    else:
-        run_block = None
+        param_info = CSVtoTensorBlock.get_param_info(None)
+        data_block = CSVtoTensorBlock(name, params)
+        num_inputs = data_block.get_num_input_ports()
+        num_outputs = data_block.get_num_output_ports()
+    elif block_type == "Inference":
+        param_info = InferenceBlock.get_param_info(None)
+        # Set default values for any missing parameters
+        for param_name, _, default_value in param_info:
+            if param_name not in params:
+                params[param_name] = default_value
+        run_block = InferenceBlock(name, params)
+        num_inputs = run_block.get_num_input_ports()
+        num_outputs = run_block.get_num_output_ports()
+    elif block_type == "Training":
+        param_info = TrainingBlock.get_param_info(None)
+        # Set default values for any missing parameters
+        for param_name, _, default_value in param_info:
+            if param_name not in params:
+                params[param_name] = default_value
+        run_block = TrainingBlock(name, params)
+        num_inputs = run_block.get_num_input_ports()
+        num_outputs = run_block.get_num_output_ports()
+    elif block_type == "Evaluation":
+        param_info = EvaluationBlock.get_param_info(None)
+        # Set default values for any missing parameters
+        for param_name, _, default_value in param_info:
+            if param_name not in params:
+                params[param_name] = default_value
+        run_block = EvaluationBlock(name, params)
+        num_inputs = run_block.get_num_input_ports()
+        num_outputs = run_block.get_num_output_ports()
+    else:  # Handle ModelBlocks
         if block_type == "Linear Layer":
-            if 'in_features' not in params:
-                params['in_features'] = 128
-            if 'out_features' not in params:
-                params['out_features'] = 64
+            param_info = LinearBlock.get_param_info(None)
             model_block = LinearBlock(name, params)
         elif block_type == "ReLU":
+            param_info = ReLUBlock.get_param_info(None)
             model_block = ReLUBlock(name, params)
         elif block_type == "Conv2D":
+            param_info = Conv2dBlock.get_param_info(None)
             model_block = Conv2dBlock(name, params)
         elif block_type == "Add":
+            param_info = AddBlock.get_param_info(None)
             model_block = AddBlock(name, params)
         elif block_type == "Sum":
+            param_info = SumBlock.get_param_info(None)
             model_block = SumBlock(name, params)
         elif block_type == "Matmul":
+            param_info = MatmulBlock.get_param_info(None)
             model_block = MatmulBlock(name, params)
         else:
             raise ValueError("Unsupported block type")
+        
+        # Set default values for any missing parameters
+        for param_name, _, default_value in param_info:
+            if param_name not in params:
+                params[param_name] = default_value
+        
         num_inputs = model_block.get_num_input_ports()
+        num_outputs = model_block.get_num_output_ports()
 
-    # All blocks have one output for now
-    num_outputs = 1
-    
     # Create the block with all parameters
-    blocks.append(Block(x, y, name, model_block, run_block, num_inputs, num_outputs))
+    blocks.append(Block(x, y, name, model_block, run_block, data_block, num_inputs, num_outputs))
 
 name_input = TextInput(380, 250, 340, 40, font)
 
@@ -469,7 +488,7 @@ def handle_events():
                     if blocks:
                         animate_data_flow(blocks, screen, font, clock, run_button_rect, connections)
                         # Run and save the model
-                        run_and_save_code(blocks, "model")
+                        run_and_save_running_code(blocks, "run_model")
                             
                     return
                 
