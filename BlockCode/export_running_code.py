@@ -61,8 +61,21 @@ def generate_model_architecture(model_blocks, data_blocks):
     for block in model_blocks:
         code.append(f"self.{block.label} = {block.model_block.to_source_code()}")
     
-    # Add data instantiation
-    for block in data_blocks:
+    # Filter out data blocks that are direct inputs of run blocks
+    filtered_data_blocks = []
+    for data_block in data_blocks:
+        is_run_block_input = False
+        # Check all outputs to determine if this is a run block input
+        for output in data_block.outputs:
+            if hasattr(output, 'run_block') and output.run_block is not None:
+                is_run_block_input = True
+                # Don't break here - we want to check all outputs
+        # Only after checking all outputs, decide whether to include this block
+        if not is_run_block_input:
+            filtered_data_blocks.append(data_block)
+    
+    # Add data instantiation for filtered blocks
+    for block in filtered_data_blocks:
         # Don't execute the code, just use it as a string
         code.append(f"self.{block.label} = {block.data_block.to_source_code()}")
     
@@ -154,12 +167,16 @@ def generate_run_code(run_blocks, data_vars):
     return code
 
 def _export_running_code_to_file(blocks, filename="run_model.py"):
-    """Export the complete running code to a file."""
+    """Export the complete running code to separate files for model architecture and inference."""
     # Run topological sort to ensure no cycles
     result = run_topsort(blocks)
     if not result:
         print("Error: Graph contains cycles")
         return False
+
+    # Get the directory from the filename
+    code_dir = Path(filename).parent
+    code_dir.mkdir(exist_ok=True)
 
     # Separate blocks by type
     model_blocks = [block for block in result if hasattr(block, 'model_block') and block.model_block is not None]
@@ -169,8 +186,9 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     model_code = generate_model_architecture(model_blocks, data_blocks)
     forward_pass = generate_forward_pass(model_blocks, data_blocks)
 
-    # Combine all code sections
-    with open(filename, "w") as f:
+    # Create model architecture file
+    model_filename = code_dir / "model_architecture.py"
+    with open(model_filename, "w") as f:
         # Write imports
         f.write("import torch\n")
         f.write("import torch.nn as nn\n")
@@ -189,8 +207,14 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         f.write("\n    def forward(self, x):\n")
         for line in forward_pass:
             f.write(f"        {line}\n")
-        f.write("        return output\n\n")
+        f.write("        return output\n")
 
+    # Create inference file
+    inference_filename = code_dir / "inference_script.py"
+    with open(inference_filename, "w") as f:
+        # Write imports
+        f.write("import torch\n")
+        f.write("from model_architecture import Model\n\n")
         
         if run_blocks:
             run_code = generate_run_code(run_blocks, {})
@@ -205,7 +229,8 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
             f.write("\nif __name__ == '__main__':\n")
             f.write("    main()\n")
 
-    print(f"[✔] Running code exported to: {filename}")
+    print(f"[✔] Model architecture exported to: {model_filename}")
+    print(f"[✔] Inference code exported to: {inference_filename}")
     return True
 
 def save_running_code(blocks, code_name):
@@ -230,14 +255,14 @@ def run_running_code(blocks):
     # Create a temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
         # Export code to temporary directory
-        temp_file = os.path.join(temp_dir, "temp_run.py")
-        if not _export_running_code_to_file(blocks, temp_file):
+        temp_dir_path = Path(temp_dir)
+        if not _export_running_code_to_file(blocks, str(temp_dir_path / "run_model.py")):
             return False
         
         try:
             # Run the code
             result = subprocess.run(
-                ["python3", temp_file],
+                ["python3", str(temp_dir_path / "inference_script.py")],
                 capture_output=True,
                 text=True,
                 check=True

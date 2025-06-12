@@ -77,7 +77,7 @@ class InferenceBlock(RunBlock):
         code.append("    with torch.no_grad():")
         code.append(f"        batch_size = {params['batch_size']}")
         code.append(f"        # Using data from {data_block.name}")
-        code.append(f"        data = {data_block.generate_data()}")
+        code.append(f"        data = {data_block.to_source_code()}")
         code.append("        output = model(data)")
         code.append("    print(f'Inference output shape: {output.shape}')")
         return code
@@ -126,7 +126,7 @@ class TrainingBlock(RunBlock):
         code.append(f"    batch_size = {params['batch_size']}")
         code.append("    for epoch in range(epochs):")
         code.append(f"        # Using data from {data_block.name}")
-        code.append(f"        data = {data_block.generate_data()}")
+        code.append(f"        data = {data_block.to_source_code()}")
         code.append("        optimizer.zero_grad()")
         code.append("        output = model(data)")
         code.append("        loss = nn.functional.mse_loss(output, data_1)  # Example loss")
@@ -173,7 +173,7 @@ class EvaluationBlock(RunBlock):
         code.append("    with torch.no_grad():")
         code.append(f"        batch_size = {params['batch_size']}")
         code.append(f"        # Using data from {data_block.name}")
-        code.append(f"        data = {data_block.generate_data()}")
+        code.append(f"        data = {data_block.to_source_code()}")
         code.append("        output = model(data)")
         
         # Add metric computations
@@ -190,43 +190,3 @@ class EvaluationBlock(RunBlock):
                 code.append("        print(f'MSE: {mse.item():.4f}')")
         
         return code
-
-# if __name__ == "__main__":
-#     # Example usage
-#     from model_block import LinearBlock, ReLUBlock, CompositeBlock
-    
-#     # Create a simple model: Linear -> ReLU -> Linear
-#     model = CompositeBlock("simple_model", [
-#         LinearBlock("linear1", {"in_features": 784, "out_features": 128}),
-#         ReLUBlock("relu1"),
-#         LinearBlock("linear2", {"in_features": 128, "out_features": 10})
-#     ])
-    
-#     # Create data block
-#     data = DataBlock("data", {
-#         "shape": (784,),
-#         "num_samples": 1000,
-#         "num_classes": 10,
-#         "val_split": 0.2
-#     })
-    
-#     # Create training configuration
-#     training = TrainingBlock("training", {
-#         "epochs": 5,
-#         "batch_size": 16,
-#         "learning_rate": 0.001
-#     })
-    
-#     # Create inference configuration
-#     inference = InferenceBlock("inference", {
-#         "batch_size": 32
-#     })
-    
-#     # Generate the code for training and inference
-#     training_code = training.generate_code(model, data)
-#     inference_code = inference.generate_code(model, data)
-    
-#     print("Training code:")
-#     print(training_code)
-#     print("\nInference code:")
-#     print(inference_code)

@@ -3,7 +3,7 @@ import pygame
 import sys
 from block import Block
 from connection import Connection
-from model_block import LinearBlock, ReLUBlock, Conv2dBlock, CompositeBlock
+from model_block import LinearBlock, ReLUBlock, Conv2dBlock
 from data_block import RandomTensorBlock, CSVtoTensorBlock
 from export_running_code import run_and_save_running_code
 from visualization import animate_data_flow
@@ -25,7 +25,7 @@ dragging_port = None
 selected_blocks = set()  # Set to store selected blocks
 showing_context_menu = False
 context_menu_pos = (0, 0)
-context_menu_options = ["Abstract Selected Blocks"]
+context_menu_options = []  # Removed "Abstract Selected Blocks" option
 
 # Define colors for the interface
 DARK = (30, 30, 30)
@@ -495,7 +495,6 @@ def handle_events():
                         animate_data_flow(blocks, screen, font, clock, run_button_rect, connections)
                         # Run and save the model
                         run_and_save_running_code(blocks, "run_model")
-                            
                     return
                 
                 if showing_model_ui:
