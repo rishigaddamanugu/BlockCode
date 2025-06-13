@@ -49,7 +49,8 @@ class InferenceBlock(RunBlock):
         return [
             ("batch_size", "int", 1),
             ("device", "str", "cpu"),
-            ("model_path", "str", None),  # For loading saved models
+            ("model_path", "str", ""),       # Optional: For loading weights
+            ("task_type", "str", "generic"), # Optional: Determines forward behavior
         ]
 
     def get_num_input_ports(self) -> int:
@@ -62,14 +63,16 @@ class InferenceBlock(RunBlock):
 
     def generate_code(self, model_block, data_block):
         params = self.params
+        task_type = params.get("task_type", "generic")
+
         code = []
         code.append("    # Setup model and device")
         code.append(f"    device = torch.device('{params['device']}')")
-        code.append("    model = Model()")
-        
+        code.append("    model = Model()")  # This will be replaced in final export
+
         if params.get('model_path'):
             code.append(f"    model.load_state_dict(torch.load('{params['model_path']}'))")
-        
+
         code.append("    model.to(device)")
         code.append("    model.eval()")
         code.append("")
@@ -78,9 +81,17 @@ class InferenceBlock(RunBlock):
         code.append(f"        batch_size = {params['batch_size']}")
         code.append(f"        # Using data from {data_block.name}")
         code.append(f"        data = {data_block.to_source_code()}")
-        code.append("        output = model(data)")
+
+        if task_type == "causal_lm":
+            code.append("        output = model.generate(**data)")
+        elif task_type in {"classification", "masked_lm", "seq2seq"}:
+            code.append("        output = model(**data)")
+        else:
+            code.append("        output = model(data)")
+
         code.append("    print(f'Inference output shape: {output.shape}')")
         return code
+
 
 class TrainingBlock(RunBlock):
     def get_mandatory_params(self):

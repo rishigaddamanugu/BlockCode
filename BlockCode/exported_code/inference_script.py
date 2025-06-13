@@ -11,7 +11,7 @@ def main():
     # Run inference
     with torch.no_grad():
         batch_size = 1
-        # Using data from x1
+        # Using data from input
         data = torch.randn(*(64, 64))
         output = model(data)
     print(f'Inference output shape: {output.shape}')

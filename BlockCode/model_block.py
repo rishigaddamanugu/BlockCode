@@ -141,3 +141,71 @@ class Conv2dBlock(ModelBlock):
     def forward_expr(self, inputs):
         input_var = inputs[0] if inputs else "x"
         return f"self.{self.name}({input_var})"
+    
+
+
+class HuggingFaceModelBlock(ModelBlock):
+    from transformers import (
+        AutoTokenizer, AutoModel,
+        AutoModelForCausalLM,
+        AutoModelForMaskedLM,
+        AutoModelForSequenceClassification,
+        AutoModelForSeq2SeqLM
+    )
+    from typing import List, Dict, Any
+    from model_block import ModelBlock  # Assuming this is your base class
+    
+    def __init__(self, name: str, model_path: str, task_type: str = "causal_lm", params: Dict[str, Any] = None):
+        super().__init__(name, params or {})
+        self.params["model_name_or_path"] = model_path
+        self.params["task_type"] = task_type
+        self.model = None  # Lazy loaded
+        self.tokenizer = None
+        self.is_expanded = False  # If you later want to extract layers
+        self.supported_task_types = {
+            "causal_lm": AutoModelForCausalLM,
+            "masked_lm": AutoModelForMaskedLM,
+            "seq2seq": AutoModelForSeq2SeqLM,
+            "classification": AutoModelForSequenceClassification,
+            "generic": AutoModel
+        }
+
+    def load_model(self):
+        """Load model and tokenizer on demand."""
+        if self.model is not None:
+            return  # Already loaded
+
+        task_type = self.params["task_type"]
+        model_class = self.supported_task_types.get(task_type, AutoModel)
+        self.model = model_class.from_pretrained(self.params["model_name_or_path"])
+        self.tokenizer = AutoTokenizer.from_pretrained(self.params["model_name_or_path"])
+
+    def to_source_code(self):
+        """Return the model instantiation code for __init__."""
+        task_type = self.params["task_type"]
+        class_map = {
+            "causal_lm": "AutoModelForCausalLM",
+            "masked_lm": "AutoModelForMaskedLM",
+            "seq2seq": "AutoModelForSeq2SeqLM",
+            "classification": "AutoModelForSequenceClassification",
+            "generic": "AutoModel"
+        }
+        model_class = class_map.get(task_type, "AutoModel")
+        return f'{model_class}.from_pretrained("{self.params["model_name_or_path"]}")'
+
+    def forward_expr(self, inputs: List[str]) -> str:
+        """Return the forward pass call (assumes model is callable)."""
+        args = ", ".join(inputs) if inputs else "x"
+        return f"self.{self.name}({args})"
+
+    def get_mandatory_params(self):
+        return ["model_name_or_path", "task_type"]
+
+    def to_dict(self):
+        return {
+            "name": self.name,
+            "type": self.__class__.__name__,
+            "params": self.params,
+            "sub_blocks": [b.to_dict() for b in self.sub_blocks]
+        }
+
