@@ -2,6 +2,14 @@ from model_block import ModelBlock
 import torch
 import pandas as pd
 from typing import List, Tuple, Any
+from transformers import (
+    AutoTokenizer, AutoModel,
+    AutoModelForCausalLM,
+    AutoModelForMaskedLM,
+    AutoModelForSequenceClassification,
+    AutoModelForSeq2SeqLM
+)
+
 
 class DataBlock:
     def __init__(self, name: str, params: dict = None):
@@ -39,6 +47,12 @@ class DataBlock:
         """Generate a random tensor."""
         raise NotImplementedError("Subclasses must implement generate_data")
 
+    def get_input_type(self):
+    
+    def get_output_type(self):
+    
+    def get_block_type(self):
+
 class RandomTensorBlock(DataBlock):
     def get_mandatory_params(self):
         return ["shape"]
@@ -64,32 +78,6 @@ class RandomTensorBlock(DataBlock):
         """Generate a random tensor."""
         return torch.randn(*self.params['shape'])
 
-class CSVtoTensorBlock(DataBlock):
-    def get_mandatory_params(self):
-        return ["file_path"]
-
-    def get_param_info(self):
-        return [
-            ("file_path", "str", ""),  # Path to CSV file
-            ("delimiter", "str", ","),  # CSV delimiter
-            ("header", "bool", True)  # Whether CSV has header
-        ]
-
-    def get_num_input_ports(self) -> int:
-        """Return the number of input ports this block requires."""
-        return 1  # CSVtoTensor takes one input (the file path)
-
-    def get_num_output_ports(self) -> int:
-        """Return the number of output ports this block provides."""
-        return 1  # CSVtoTensor provides one output tensor
-
-    def to_source_code(self):
-        """Return the source code for the data block."""
-        return f"torch.tensor(pd.read_csv('{self.params['file_path']}', delimiter='{self.params['delimiter']}', header=0 if {self.params['header']} else None).values)"
-    
-    def generate_data(self):
-        """Generate a tensor from a CSV file."""
-        return torch.tensor(pd.read_csv(self.params['file_path'], delimiter=self.params['delimiter'], header=0 if self.params['header'] else None).values)
 
 
 class TextFileDataBlock(DataBlock):
@@ -98,7 +86,7 @@ class TextFileDataBlock(DataBlock):
 
     def get_param_info(self):
         return [
-            ("file_path", "str", "path/to/file.txt"),
+            ("file_path", "str", "text.txt"),
         ]
 
     def get_num_input_ports(self) -> int:
@@ -117,3 +105,4 @@ class TextFileDataBlock(DataBlock):
         """Actually read the file contents."""
         with open(self.params["file_path"], "r") as f:
             return f.read()
+

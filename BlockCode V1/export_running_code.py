@@ -69,6 +69,8 @@ def generate_model_architecture(model_blocks, data_blocks):
         for block_input in block.inputs:
             if hasattr(block_input, 'data_block') and block_input.data_block is not None:
                 code.append(f"self.{block_input.label} = {block_input.data_block.to_source_code()}")
+            # if hasattr(block_input, 'data_converter') and block_input.data_converter is not None:
+            #     code.append(f"self.{block_input.label} = {block_input.data_converter.to_source_code()}")
         
     
     return code
@@ -119,21 +121,6 @@ def generate_forward_pass(model_blocks, data_blocks):
     
     return code
 
-def generate_data_preparation(data_blocks):
-    """Generate code for data preparation using data blocks."""
-    code = []
-    var_names = {}
-    
-    # Assign variable names to data blocks
-    for i, block in enumerate(data_blocks):
-        var_names[block] = f"data_{i}"
-    
-    # Generate data preparation code
-    for block in data_blocks:
-        code.append(f"    # Generate data using {block.label}")
-        code.append(f"    {var_names[block]} = {block.data_block.to_source_code()}")
-    
-    return code, var_names
 
 def generate_run_code(run_blocks, data_vars):
     """Generate code for running the model using run blocks."""

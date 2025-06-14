@@ -10,7 +10,7 @@ BLUE = (100, 150, 255)   # Output port color
 GREEN = (100, 255, 150)  # Input port color
 
 class Block:
-    def __init__(self, x, y, label, model_block=None, run_block=None, data_block=None, num_inputs=1, num_outputs=1):
+    def __init__(self, x, y, label, model_block=None, run_block=None, data_block=None, data_converter=None, num_inputs=1, num_outputs=1):
         # Initialize block properties
         self.label = label
         # Create a rectangle for the block's visual representation
@@ -27,6 +27,7 @@ class Block:
         self.model_block = model_block
         self.run_block = run_block
         self.data_block = data_block
+        self.data_converter = data_converter
         
         # Lists to store connected blocks
         self.inputs = []
@@ -63,4 +64,27 @@ class Block:
         # Compare blocks by their memory address
         return id(self) == id(other)
     
-    
+
+class LogicBlock(Block):
+    def get_block_role(self) -> str:
+        """
+        What is this block's functional identity?
+        Used for graph validation and role assignment.
+        Examples: "model", "data_source", "preprocessor", "runner", "metric"
+        """
+        return "generic"
+
+    def get_input_type(self) -> str:
+        """
+        What type of input does this block expect?
+        Examples: "Tensor", "TokenDict", "Str", "Model"
+        """
+        return "Any"  # Or "None" for data sources
+
+    def get_output_type(self) -> str:
+        """
+        What type of data does this block produce?
+        Examples: "Tensor", "TokenDict", "Str", "Model"
+        """
+        return "Unknown"
+

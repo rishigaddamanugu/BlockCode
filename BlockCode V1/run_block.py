@@ -90,6 +90,7 @@ class InferenceBlock(RunBlock):
         else:
             code.append("        output = model(data)")
 
+        code.append("    print(f'Inference output: {output}')")
         code.append("    print(f'Inference output shape: {output.shape}')")
         return code
 

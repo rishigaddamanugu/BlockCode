@@ -4,7 +4,8 @@ import sys
 from block import Block
 from connection import Connection
 from model_block import LinearBlock, ReLUBlock, Conv2dBlock, HuggingFaceModelBlock
-from data_block import RandomTensorBlock, CSVtoTensorBlock
+from data_block import RandomTensorBlock, TextFileDataBlock
+from data_converter import CSVtoTensorBlock, AutoTokenizerBlock
 from export_running_code import run_and_save_running_code
 from visualization import animate_data_flow
 from operation_blocks import AddBlock, SumBlock, MatmulBlock
@@ -44,10 +45,11 @@ model_name = ""
 # Define categories and their options
 categories = {
     "Layers": ["Linear Layer", "ReLU", "Conv2D"],
-    "Data": ["RandomTensor", "CSVtoTensor"],
+    "Data": ["RandomTensor", "txtFile"],
     "Operations": ["Add", "Sum", "Matmul"],
     "Run": ["Inference", "Training", "Evaluation"],
-    "HuggingFace":["ImportHuggingFaceModel", "LocalHuggingFaceModel"]
+    "HuggingFace":["ImportHuggingFaceModel", "LocalHuggingFaceModel"],
+    "DataConverter": ["CSVtoTensor", "AutoTokenizer"]
 }
 
 model_rects = []
@@ -313,8 +315,6 @@ def handle_model_ui_events(event):
                             param_info = MatmulBlock.get_param_info(None)
                         elif selected_model == "RandomTensor":
                             param_info = RandomTensorBlock.get_param_info(None)
-                        elif selected_model == "CSVtoTensor":
-                            param_info = CSVtoTensorBlock.get_param_info(None)
                         elif selected_model == "Inference":
                             param_info = InferenceBlock.get_param_info(None)
                         elif selected_model == "Training":
@@ -325,6 +325,12 @@ def handle_model_ui_events(event):
                             param_info = HuggingFaceModelBlock.get_param_info(None)
                         elif selected_model == "LocalHuggingFaceModel":
                             param_info = HuggingFaceModelBlock.get_param_info(None)
+                        elif selected_model == "txtFile":
+                            param_info = TextFileDataBlock.get_param_info(None)
+                        elif selected_model == "CSVtoTensor":
+                            param_info = CSVtoTensorBlock.get_param_info(None)
+                        elif selected_model == "AutoTokenizer":
+                            param_info = AutoTokenizerBlock.get_param_info(None)
                         else:
                             param_info = []
                         
@@ -398,6 +404,7 @@ def create_block_from_type(x, y, block_type, name, params=None):
     run_block = None
     model_block = None
     data_block = None
+    data_converter = None
 
     if params is None:
         params = {}
@@ -408,9 +415,19 @@ def create_block_from_type(x, y, block_type, name, params=None):
         data_block = RandomTensorBlock(name, params)
         num_inputs = data_block.get_num_input_ports()
         num_outputs = data_block.get_num_output_ports()
+    elif block_type == "txtFile":
+        param_info = TextFileDataBlock.get_param_info(None)
+        data_block = TextFileDataBlock(name, params)
+        num_inputs = data_block.get_num_input_ports()
+        num_outputs = data_block.get_num_output_ports()
     elif block_type == "CSVtoTensor":
         param_info = CSVtoTensorBlock.get_param_info(None)
-        data_block = CSVtoTensorBlock(name, params)
+        data_converter = CSVtoTensorBlock(name, params)
+        num_inputs = data_block.get_num_input_ports()
+        num_outputs = data_block.get_num_output_ports()
+    elif block_type == "AutoTokenizer":
+        param_info = AutoTokenizerBlock.get_param_info(None)
+        data_converter = AutoTokenizerBlock(name, params)
         num_inputs = data_block.get_num_input_ports()
         num_outputs = data_block.get_num_output_ports()
     elif block_type == "Inference":
