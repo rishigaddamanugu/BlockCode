@@ -90,3 +90,30 @@ class CSVtoTensorBlock(DataBlock):
     def generate_data(self):
         """Generate a tensor from a CSV file."""
         return torch.tensor(pd.read_csv(self.params['file_path'], delimiter=self.params['delimiter'], header=0 if self.params['header'] else None).values)
+
+
+class TextFileDataBlock(DataBlock):
+    def get_mandatory_params(self):
+        return ["file_path"]
+
+    def get_param_info(self):
+        return [
+            ("file_path", "str", "path/to/file.txt"),
+        ]
+
+    def get_num_input_ports(self) -> int:
+        """Return the number of input ports this block requires."""
+        return 0  # It doesn't require any input
+
+    def get_num_output_ports(self) -> int:
+        """Return the number of output ports this block provides."""
+        return 1  # It outputs the text content
+    
+    def to_source_code(self):
+        """Generate the code for loading text from a file."""
+        return f"open('{self.params['file_path']}', 'r').read()"
+    
+    def generate_data(self):
+        """Actually read the file contents."""
+        with open(self.params["file_path"], "r") as f:
+            return f.read()

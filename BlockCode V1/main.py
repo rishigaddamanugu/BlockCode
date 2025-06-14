@@ -47,7 +47,7 @@ categories = {
     "Data": ["RandomTensor", "CSVtoTensor"],
     "Operations": ["Add", "Sum", "Matmul"],
     "Run": ["Inference", "Training", "Evaluation"],
-    "HuggingFace":["ImportedHuggingFaceModel", "LocalHuggingFaceModel"]
+    "HuggingFace":["ImportHuggingFaceModel", "LocalHuggingFaceModel"]
 }
 
 model_rects = []
@@ -321,7 +321,7 @@ def handle_model_ui_events(event):
                             param_info = TrainingBlock.get_param_info(None)
                         elif selected_model == "Evaluation":
                             param_info = EvaluationBlock.get_param_info(None)
-                        elif selected_model == "ImportedHuggingFaceModel":
+                        elif selected_model == "ImportHuggingFaceModel":
                             param_info = HuggingFaceModelBlock.get_param_info(None)
                         elif selected_model == "LocalHuggingFaceModel":
                             param_info = HuggingFaceModelBlock.get_param_info(None)
@@ -459,7 +459,7 @@ def create_block_from_type(x, y, block_type, name, params=None):
         elif block_type == "Matmul":
             param_info = MatmulBlock.get_param_info(None)
             model_block = MatmulBlock(name, params)
-        elif block_type == "ImportedHuggingFaceModel":
+        elif block_type == "ImportHuggingFaceModel":
             param_info = HuggingFaceModelBlock.get_param_info(None)
             model_block = HuggingFaceModelBlock(name, params)
         elif block_type == "LocalHuggingFaceModel":
