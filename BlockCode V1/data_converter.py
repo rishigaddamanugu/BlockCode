@@ -5,7 +5,7 @@ from transformers import AutoTokenizer
 import torch
 import pandas as pd
 
-class DataConverter(ModelBlock):
+class DataConverter:
     def __init__(self, name: str, params: Dict[str, Any] = None):
         super().__init__(name, params or {})
         # This class doesn't override behavior, but adds semantic grouping

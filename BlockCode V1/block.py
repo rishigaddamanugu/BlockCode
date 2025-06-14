@@ -10,7 +10,7 @@ BLUE = (100, 150, 255)   # Output port color
 GREEN = (100, 255, 150)  # Input port color
 
 class Block:
-    def __init__(self, x, y, label, model_block=None, run_block=None, data_block=None, data_converter=None, num_inputs=1, num_outputs=1):
+    def __init__(self, x, y, label, model_block=None, run_block=None, data_block=None, data_converter=None, operation_block=None, num_inputs=1, num_outputs=1):
         # Initialize block properties
         self.label = label
         # Create a rectangle for the block's visual representation
@@ -28,6 +28,7 @@ class Block:
         self.run_block = run_block
         self.data_block = data_block
         self.data_converter = data_converter
+        self.operation_block = operation_block
         
         # Lists to store connected blocks
         self.inputs = []

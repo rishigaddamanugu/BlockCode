@@ -61,7 +61,9 @@ class InferenceBlock(RunBlock):
         """Return the number of output ports this block provides."""
         return 1  # Provides model predictions
 
-    def generate_code(self, model_block, data_block):
+    def generate_code(self, model_block, data_block, data_converter):
+        data_block = data_block or data_converter
+        ## **TODO** Reconfigure to use model_block to import and use specific model instead of generic model
         params = self.params
         task_type = params.get("task_type", "generic")
 
