@@ -47,12 +47,6 @@ class DataBlock:
         """Generate a random tensor."""
         raise NotImplementedError("Subclasses must implement generate_data")
 
-    def get_input_type(self):
-    
-    def get_output_type(self):
-    
-    def get_block_type(self):
-
 class RandomTensorBlock(DataBlock):
     def get_mandatory_params(self):
         return ["shape"]
