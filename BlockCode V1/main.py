@@ -403,39 +403,32 @@ def handle_model_ui_events(event):
 def create_block_from_type(x, y, block_type, name, params=None):
     run_block = None
     model_block = None
-    data_block = None
-    data_converter = None
-    operation_block = None
 
     if params is None:
         params = {}
     
     # Get parameter info and set defaults for any missing parameters
-    chosen_block = None
+   
     if block_type == "RandomTensor":
         param_info = RandomTensorBlock.get_param_info(None)
-        data_block = RandomTensorBlock(name, params)
-        num_inputs = data_block.get_num_input_ports()
-        num_outputs = data_block.get_num_output_ports()
-        chosen_block = data_block
+        model_block = RandomTensorBlock(name, params)
+        num_inputs = model_block.get_num_input_ports()
+        num_outputs = model_block.get_num_output_ports()
     elif block_type == "txtFile":
         param_info = TextFileDataBlock.get_param_info(None)
-        data_block = TextFileDataBlock(name, params)
-        num_inputs = data_block.get_num_input_ports()
-        num_outputs = data_block.get_num_output_ports()
-        chosen_block = data_block
+        model_block = TextFileDataBlock(name, params)
+        num_inputs = model_block.get_num_input_ports()
+        num_outputs = model_block.get_num_output_ports()
     elif block_type == "CSVtoTensor":
         param_info = CSVtoTensorBlock.get_param_info(None)
-        data_converter = CSVtoTensorBlock(name, params)
-        num_inputs = data_block.get_num_input_ports()
-        num_outputs = data_block.get_num_output_ports()
-        chosen_block = data_converter
+        model_block = CSVtoTensorBlock(name, params)
+        num_inputs = model_block.get_num_input_ports()
+        num_outputs = model_block.get_num_output_ports()
     elif block_type == "AutoTokenizer":
         param_info = AutoTokenizerBlock.get_param_info(None)
-        data_converter = AutoTokenizerBlock(name, params)
-        num_inputs = data_block.get_num_input_ports()
-        num_outputs = data_block.get_num_output_ports()
-        chosen_block = data_converter
+        model_block = AutoTokenizerBlock(name, params)
+        num_inputs = model_block.get_num_input_ports()
+        num_outputs = model_block.get_num_output_ports()
     elif block_type == "Inference":
         param_info = InferenceBlock.get_param_info(None)
         # Set default values for any missing parameters
@@ -445,7 +438,6 @@ def create_block_from_type(x, y, block_type, name, params=None):
         run_block = InferenceBlock(name, params)
         num_inputs = run_block.get_num_input_ports()
         num_outputs = run_block.get_num_output_ports()
-        chosen_block = run_block
     elif block_type == "Training":
         param_info = TrainingBlock.get_param_info(None)
         # Set default values for any missing parameters
@@ -455,7 +447,6 @@ def create_block_from_type(x, y, block_type, name, params=None):
         run_block = TrainingBlock(name, params)
         num_inputs = run_block.get_num_input_ports()
         num_outputs = run_block.get_num_output_ports()
-        chosen_block = run_block
     elif block_type == "Evaluation":
         param_info = EvaluationBlock.get_param_info(None)
         # Set default values for any missing parameters
@@ -465,38 +456,48 @@ def create_block_from_type(x, y, block_type, name, params=None):
         run_block = EvaluationBlock(name, params)
         num_inputs = run_block.get_num_input_ports()
         num_outputs = run_block.get_num_output_ports()
-        chosen_block = run_block
     else:  # Handle ModelBlocks
         if block_type == "Linear Layer":
             param_info = LinearBlock.get_param_info(None)
             model_block = LinearBlock(name, params)
-            chosen_block = model_block
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
+
         elif block_type == "ReLU":
             param_info = ReLUBlock.get_param_info(None)
             model_block = ReLUBlock(name, params)
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "Conv2D":
             param_info = Conv2dBlock.get_param_info(None)
             model_block = Conv2dBlock(name, params)
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "Add":
             param_info = AddBlock.get_param_info(None)
-            operation_block = AddBlock(name, params)
-            chosen_block = operation_block
+            model_block = AddBlock(name, params)
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "Sum":
             param_info = SumBlock.get_param_info(None)
-            operation_block = SumBlock(name, params)
-            chosen_block = operation_block
+            model_block = SumBlock(name, params)
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "Matmul":
             param_info = MatmulBlock.get_param_info(None)
-            operation_block = MatmulBlock(name, params)
-            chosen_block = operation_block
+            model_block = MatmulBlock(name, params)
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "ImportHuggingFaceModel":
             param_info = HuggingFaceModelBlock.get_param_info(None)
             model_block = HuggingFaceModelBlock(name, params)
-            chosen_block = model_block
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         elif block_type == "LocalHuggingFaceModel":
             param_info = HuggingFaceModelBlock.get_param_info(None)
             model_block = HuggingFaceModelBlock(name, params)
-            chosen_block = model_block
+            num_inputs = model_block.get_num_input_ports()
+            num_outputs = model_block.get_num_output_ports()
         else:
             raise ValueError("Unsupported block type")
         
@@ -504,17 +505,13 @@ def create_block_from_type(x, y, block_type, name, params=None):
         for param_name, _, default_value in param_info:
             if param_name not in params:
                 params[param_name] = default_value
-        
-        num_inputs = chosen_block.get_num_input_ports()
-        num_outputs = chosen_block.get_num_output_ports()
-
     # Create the block with all parameters
     if name in labels:
         raise AttributeError("All block names must be unique!")
     
     labels.add(name)
     
-    blocks.append(Block(x, y, name, model_block, run_block, data_block, data_converter, operation_block, num_inputs, num_outputs))
+    blocks.append(Block(x, y, name, model_block, run_block, num_inputs, num_outputs))
 
 name_input = TextInput(380, 250, 340, 40, font)
 

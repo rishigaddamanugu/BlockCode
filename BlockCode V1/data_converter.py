@@ -1,11 +1,10 @@
 from transformers import AutoTokenizer
 from model_block import ModelBlock  # Your base class
 from typing import List, Dict, Any, Tuple
-from transformers import AutoTokenizer
 import torch
 import pandas as pd
 
-class DataConverter:
+class DataConverter(ModelBlock):
     def __init__(self, name: str, params: Dict[str, Any] = None):
         super().__init__(name, params or {})
         # This class doesn't override behavior, but adds semantic grouping
@@ -50,6 +49,9 @@ class AutoTokenizerBlock(DataConverter):
             "params": self.params,
             "sub_blocks": [b.to_dict() for b in self.sub_blocks]
         }
+    
+    def required_imports(self) -> List[str]:
+        return ["from transformers import AutoTokenizer"]
 
 
 
@@ -95,3 +97,6 @@ class CSVtoTensorBlock(DataConverter):
             "params": self.params,
             "sub_blocks": [b.to_dict() for b in self.sub_blocks]
         }
+
+    def required_imports(self) -> List[str]:
+        return ["import torch", "import pandas as pd"]

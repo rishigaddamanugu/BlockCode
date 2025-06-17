@@ -28,6 +28,14 @@ class ModelBlock:
     def get_param_info(self) -> List[Tuple[str, str, Any]]:
         return []
 
+    def required_imports(self) -> List[str]:
+        """Returns a list of required imports for this block type.
+        
+        Returns:
+            List[str]: List of import statements required for this block type.
+        """
+        return []
+
     def get_num_input_ports(self) -> int:
         if not self.sub_blocks:
             return 1
@@ -50,13 +58,16 @@ class ModelBlock:
         )
 
     def forward_expr(self, inputs):
-        if not self.sub_blocks:
-            return f"self.{self.name}({', '.join(inputs) if inputs else 'x'})"
 
-        current_input = inputs[0] if inputs else "x"
-        for b in self.sub_blocks:
-            current_input = b.forward_expr([current_input])
-        return current_input
+        if inputs:
+            if not self.sub_blocks:
+                return f"self.{self.name}({', '.join(inputs)})"
+
+            current_input = inputs[0]
+            for b in self.sub_blocks:
+                current_input = b.forward_expr([current_input])
+            return current_input
+        return f"self.{self.name}(x)"
 
     def to_dict(self):
         return {
@@ -70,6 +81,9 @@ class ModelBlock:
 class LinearBlock(ModelBlock):
     def get_mandatory_params(self) -> List[str]:
         return ["in_features", "out_features"]
+
+    def required_imports(self) -> List[str]:
+        return ["import torch.nn as nn"]
 
     def get_param_info(self) -> List[Tuple[str, str, Any]]:
         return [
@@ -99,6 +113,9 @@ class ReLUBlock(ModelBlock):
             ("inplace", "bool", False)
         ]
 
+    def required_imports(self) -> List[str]:
+        return ["import torch.nn as nn"]
+
     def get_num_input_ports(self) -> int:
         return 1
 
@@ -117,6 +134,9 @@ class ReLUBlock(ModelBlock):
 class Conv2dBlock(ModelBlock):
     def get_mandatory_params(self) -> List[str]:
         return ["in_channels", "out_channels", "kernel_size"]
+
+    def required_imports(self) -> List[str]:
+        return ["import torch.nn as nn"]
 
     def get_param_info(self) -> List[Tuple[str, str, Any]]:
         return [
@@ -177,6 +197,15 @@ class HuggingFaceModelBlock(ModelBlock):
             "classification": AutoModelForSequenceClassification,
             "generic": AutoModel
         }
+
+    def required_imports(self) -> List[str]:
+        return [
+            "from transformers import AutoModel",
+            "from transformers import AutoModelForCausalLM",
+            "from transformers import AutoModelForMaskedLM",
+            "from transformers import AutoModelForSeq2SeqLM",
+            "from transformers import AutoModelForSequenceClassification"
+        ]
 
     def load_model(self):
         """Instantiate the model from Hugging Face."""

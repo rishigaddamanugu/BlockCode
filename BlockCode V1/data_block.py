@@ -11,7 +11,7 @@ from transformers import (
 )
 
 
-class DataBlock:
+class DataBlock(ModelBlock):
     def __init__(self, name: str, params: dict = None):
         self.name = name
         self.params = params or {}
@@ -46,6 +46,9 @@ class DataBlock:
     def generate_data(self):
         """Generate a random tensor."""
         raise NotImplementedError("Subclasses must implement generate_data")
+    
+    def required_imports(self) -> List[str]:
+        return ["import torch"]
 
 class RandomTensorBlock(DataBlock):
     def get_mandatory_params(self):
@@ -68,9 +71,15 @@ class RandomTensorBlock(DataBlock):
         """Return the source code for the data block."""
         return f"torch.randn(*{self.params['shape']})"
     
+    def forward_expr(self, inputs):
+        return f"self.{self.name}" # This allows us to keep export code generic while setting a variable to itself basically as the output
+        
     def generate_data(self):
         """Generate a random tensor."""
         return torch.randn(*self.params['shape'])
+    
+    def required_imports(self) -> List[str]:
+        return ["import torch"]
 
 
 
@@ -94,9 +103,15 @@ class TextFileDataBlock(DataBlock):
     def to_source_code(self):
         """Generate the code for loading text from a file."""
         return f"open('{self.params['file_path']}', 'r').read()"
+
+    def forward_expr(self, inputs):
+        return f"self.{self.name}" # This allows us to keep export code generic while setting a variable to itself basically as the output
     
     def generate_data(self):
         """Actually read the file contents."""
         with open(self.params["file_path"], "r") as f:
             return f.read()
+    
+    def required_imports(self) -> List[str]:
+        return ["import pandas as pd"]
 

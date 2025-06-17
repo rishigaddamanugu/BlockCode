@@ -25,6 +25,9 @@ class OperationBlock(ModelBlock):
         """Operations typically don't have mandatory parameters."""
         return []
 
+    def required_imports(self) -> List[str]:
+        return ["import torch"]
+
 
 class AddBlock(OperationBlock):
     def get_num_input_ports(self) -> int:
@@ -35,6 +38,7 @@ class AddBlock(OperationBlock):
 
     def forward_expr(self, inputs):
         # For Add, we need at least two inputs
+        # Every block has a unique usage, but the general export takes care of how they are used
         input1 = inputs[0]
         input2 = inputs[1]
         return f"{input1} + {input2}"

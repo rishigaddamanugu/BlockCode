@@ -4,7 +4,9 @@ import tempfile
 import subprocess
 from pathlib import Path
 from typing import List, Dict, Tuple
-from data_block import DataBlock
+from data_block import DataBlock, RandomTensorBlock
+from data_converter import DataConverter, AutoTokenizerBlock
+from model_block import ModelBlock
 
 def _dfs_topsort(block, visited=None, temp_visited=None, result=None):
     if visited is None:
@@ -66,85 +68,73 @@ def generate_model_architecture(model_blocks):
     # Add model layers
     for block in model_blocks:
         code.append(f"self.{block.label} = {block.model_block.to_source_code()}")
-        for block_input in block.inputs:
-            if hasattr(block_input, 'data_block') and block_input.data_block is not None:
-                code.append(f"self.{block_input.label} = {block_input.data_block.to_source_code()}")
-            if hasattr(block_input, 'data_converter') and block_input.data_converter is not None:
-                code.append(f"self.{block_input.label} = {block_input.data_converter.to_source_code()}")
+        # for block_input in block.inputs:
+        #     if hasattr(block_input, 'data_block') and block_input.data_block is not None:
+        #         code.append(f"self.{block_input.label} = {block_input.data_block.to_source_code()}")
+        #     if hasattr(block_input, 'data_converter') and block_input.data_converter is not None:
+        #         code.append(f"self.{block_input.label} = {block_input.data_converter.to_source_code()}")
         
     
     return code
 
-def generate_forward_pass(model_blocks, data_blocks, data_converters, operation_blocks):
+def generate_forward_pass(model_blocks):
     """Generate the forward pass code for the model."""
     code = []
     var_names = {}
-    
-    # First, collect all blocks that are connected to model blocks
-    model_blocks = model_blocks + operation_blocks
-    all_blocks = set(model_blocks)
-    for block in model_blocks:
-        all_blocks.update(block.inputs)
-    
     # Assign variable names to all blocks
-    for i, block in enumerate(all_blocks):
+    for i, block in enumerate(model_blocks):
+        print("BLOCK:", block)
         var_names[block] = f"x{i}"
     
     # Generate forward pass code
     for i, block in enumerate(model_blocks):
         input_vars = []
-        if not block.inputs:  # If block has no inputs, use 'x'
-            input_vars = ["x"]
-        else:
-            # For each input block, get its variable name
-            for input_block in block.inputs:
-                # If the input is a data block, use self.data_block_name
-                if input_block in data_blocks or input_block in data_converters:
-                    input_vars.append(f"self.{input_block.label}")
-                else:
-                    input_vars.append(var_names[input_block])
+        for input_block in block.inputs:
+            print("INPUT BLOCK:", input_block)
+            input_vars.append(var_names[input_block])
         
         # If this is the last block, name its output "output"
         if i == len(model_blocks) - 1:
             if block.model_block:
+                print("DEBUG:", block.model_block.forward_expr(input_vars))
                 code.append(f"output = {block.model_block.forward_expr(input_vars)}")
-            if block.operation_block:
-                code.append(f"output = {block.operation_block.forward_expr(input_vars)}")
         else:
             if block.model_block:
                 code.append(f"{var_names[block]} = {block.model_block.forward_expr(input_vars)}")
-            if block.operation_block:
-                code.append(f"{var_names[block]} = {block.operation_block.forward_expr(input_vars)}")
     
     return code
 
 
 def generate_run_code(run_blocks):
+    ## **TODO**: Generalize this function to not need to type check for data blocks
     """Generate code for running the model using run blocks."""
     code = []
     
     # Generate code for each run block
     for block in run_blocks:
-        if hasattr(block, 'run_block'):
-            # Find model and data blocks from inputs
-            model_block = None
-            data_block = None
-            data_converter = None
+        # Find model and data blocks from inputs
+        data_block = None
+        for input_block in block.inputs:
+            print("TYPE:", type(input_block.model_block))
+            if hasattr(input_block, 'model_block') and input_block.model_block and type(input_block.model_block) == AutoTokenizerBlock:
+                data_block = input_block.model_block
             
-            for input_block in block.inputs:
-                if hasattr(input_block, 'model_block') and input_block.model_block:
-                    model_block = input_block.model_block
-                if hasattr(input_block, 'data_block') and input_block.data_block:
-                    data_block = input_block.data_block
-                if hasattr(input_block, 'data_converter') and input_block.data_converter:
-                    data_converter = input_block.data_converter
-            
-            # Generate code with the found blocks
-            run_code = block.run_block.generate_code(model_block, data_block, data_converter)
+        
+        # Generate code with the found blocks
+        if data_block:
+            run_code = block.run_block.generate_code(data_block)
             code.extend(run_code)
             code.append("")  # Add blank line between blocks
-    
+
     return code
+
+def generate_imports(blocks):
+    """Generate the imports for the running code."""
+    imports = set()
+    for block in blocks:
+        if block.model_block:
+            imports.update(block.model_block.required_imports())
+    return list(imports)
 
 def _export_running_code_to_file(blocks, filename="run_model.py"):
     """Export the complete running code to separate files for model architecture and run."""
@@ -158,24 +148,24 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     code_dir = Path(filename).parent
     code_dir.mkdir(exist_ok=True)
 
+    model_blocks = [block for block in result if block.run_block is None]
     # Separate blocks by type
-    model_blocks = [block for block in result if hasattr(block, 'model_block') and block.model_block is not None]
-    data_blocks = [block for block in result if hasattr(block, 'data_block') and block.data_block is not None]
     run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None]
-    data_converters = [block for block in result if hasattr(block, 'data_converter') and block.data_converter is not None]
-    operation_blocks = [block for block in result if hasattr(block, 'operation_block') and block.operation_block is not None]
 
     architecture_code = generate_model_architecture(model_blocks)
-    forward_pass = generate_forward_pass(model_blocks, data_blocks, data_converters, operation_blocks)
+    forward_pass = generate_forward_pass(model_blocks)
 
     # Create model architecture file
     model_filename = code_dir / "model_architecture.py"
     with open(model_filename, "w") as f:
         # Write imports
-        f.write("import torch\n")
+        # f.write("import torch\n")
+        # f.write("import torch.nn as nn\n")
+        # f.write("from typing import Dict, Any, List, Tuple\n\n")
         f.write("import torch.nn as nn\n")
-        f.write("from typing import Dict, Any, List, Tuple\n\n")
-        
+        for import_line in generate_imports(blocks):
+            f.write(f"{import_line}\n")
+        f.write("\n")
         # Write model class
         f.write("class Model(nn.Module):\n")
         f.write("    def __init__(self):\n")
@@ -195,10 +185,14 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     run_filename = code_dir / "run_script.py"
     with open(run_filename, "w") as f:
         # Write imports
+        # f.write("import torch\n")
+        # f.write("import torch.nn as nn\n")
+        # f.write("from typing import Dict, Any, List, Tuple\n\n")
         f.write("import torch\n")
-        f.write("import torch.nn as nn\n")
-        f.write("from typing import Dict, Any, List, Tuple\n\n")
+        for import_line in generate_imports(blocks):
+            f.write(f"{import_line}\n")
         f.write("from model_architecture import Model\n\n")
+        f.write("\n")
         
         if run_blocks:
             run_code = generate_run_code(run_blocks)
