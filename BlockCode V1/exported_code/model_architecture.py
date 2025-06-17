@@ -1,19 +1,18 @@
 import torch
 import torch.nn as nn
 from typing import Dict, Any, List, Tuple
+from transformers import AutoTokenizer
+from transformers import AutoModelForCausalLM
 
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.L3 = nn.Linear(64, 64, bias=True)
-        self.x3 = torch.randn(*(64, 64))
-        self.L1 = nn.Linear(64, 64, bias=True)
-        self.x1 = torch.randn(*(64, 64))
-        self.L2 = nn.Linear(64, 64, bias=True)
+        self.LLM = AutoModelForCausalLM.from_pretrained('sshleifer/tiny-gpt2')
+        self.input_text = open('text.txt', 'r').read()
+        self.tokenizer = AutoTokenizer.from_pretrained('sshleifer/tiny-gpt2')
 
     def forward(self, x):
-        x1 = self.L3(self.x3)
-        x4 = self.L1(self.x1)
-        x2 = self.L2(x4)
-        output = x2 + x1
+        x0 = self.LLM(**x)
+        x1 = self.input_text
+        output = self.tokenizer(x1, return_tensors='pt')
         return output
