@@ -1,11 +1,11 @@
 import torch
+from transformers import AutoModelForSeq2SeqLM
+from transformers import AutoModelForSequenceClassification
+from transformers import AutoModel
+import pandas as pd
+from transformers import AutoModelForCausalLM
 from transformers import AutoModelForMaskedLM
 from transformers import AutoTokenizer
-from transformers import AutoModelForSeq2SeqLM
-from transformers import AutoModel
-from transformers import AutoModelForSequenceClassification
-from transformers import AutoModelForCausalLM
-import pandas as pd
 from model_architecture import Model
 
 
@@ -20,7 +20,7 @@ def main():
     with torch.no_grad():
         batch_size = 1
         # Using data from tokenizer
-        data = AutoTokenizer.from_pretrained('sshleifer/tiny-gpt2')
+        data = AutoTokenizer.from_pretrained('distilgpt2')
         output = model(data)
     print(f'Inference output: {output}')
     print(f'Inference output shape: {output.shape}')

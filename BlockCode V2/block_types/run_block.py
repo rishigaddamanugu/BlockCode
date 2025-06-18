@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
-from model_block import ModelBlock
-from data_block import DataBlock
+from block_types.model_block import ModelBlock
+from block_types.data_block import DataBlock
 from typing import Dict, Any, List, Tuple
 
 class RunBlock:

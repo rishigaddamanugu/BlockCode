@@ -1,5 +1,5 @@
 from transformers import AutoTokenizer
-from model_block import ModelBlock  # Your base class
+from block_types.model_block import ModelBlock  # Your base class
 from typing import List, Dict, Any, Tuple
 import torch
 import pandas as pd
