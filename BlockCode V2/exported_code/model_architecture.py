@@ -1,21 +1,18 @@
 import torch.nn as nn
+import torch.nn as nn
 import torch
 
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.x3 = torch.randn(*(64, 64))
-        self.xw = torch.randn(*(64, 64))
-        self.SUM2 = None
+        self.input_data = torch.randn(*(64, 64))
         self.x1 = torch.randn(*(64, 64))
-        self.SUM = None
-        self.ADD = None
+        self.L1 = nn.Linear(64, 64, bias=True)
+        self.L2 = nn.Linear(64, 64, bias=True)
 
     def forward(self, x):
-        x1 = self.x3
-        x2 = self.xw
-        x3 = x2.sum(dim=1, keepdim=False)
-        x4 = self.x1
-        x5 = x4.sum(dim=1, keepdim=False)
-        output = x5 + x3
+        x1 = self.input_data
+        x2 = self.x1
+        x3 = self.L1(x2)
+        output = self.L2(x3)
         return output
