@@ -151,14 +151,17 @@ def generate_imports(blocks):
 ## This could be recursively structured where we dive into a composite block until reaching a block whose children are "leaves" (have no children)
 ## Then the block whose children are all leaves will be used to create a new class with its label name
 def generate_models(composite_blocks):
-    ## Decide between BFS and DFS here for correct generation (I dont actually think it matters because code generation doesnt have such dependencies)
-    ## BFS might make it easier to combine all the returned code with newline characters so we don't need reference passing
     code = []
     q = deque()
     q.extend(composite_blocks)
+    visited = set()
 
     while q:
         block = q.popleft()
+        if block.label in visited:
+            continue
+        visited.add(block.label)
+
         architecture_code = generate_model_architecture(block.composite_block.name, block.composite_block.sub_blocks)
         forward_pass = generate_forward_pass(block.composite_block.sub_blocks)
         code.extend(architecture_code)

@@ -13,6 +13,7 @@ from transformers import (
 
 class DataBlock(CompositeBlock):
     def __init__(self, name: str, params: dict = None):
+        super().__init__(name)
         self.name = name
         self.params = params or {}
         self.validate_params()
