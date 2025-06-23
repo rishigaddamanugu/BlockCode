@@ -67,6 +67,10 @@ def run_topsort(blocks):
 ## This could be recursively structured where we dive into a composite block until reaching a block whose children are "leaves" (have no children)
 ## Then the block whose children are all leaves will be used to create a new class with its label name
 def generate_model_architecture(model_name, composite_blocks):
+
+    if not composite_blocks:
+        return []
+    
     """Generate the PyTorch model class code."""
     code = []
     code.append(f"import torch\nimport torch.nn as nn\n\n")
@@ -74,10 +78,10 @@ def generate_model_architecture(model_name, composite_blocks):
     code.append("    def __init__(self):\n")
     code.append("        super().__init__()\n")
     
-    for block in composite_blocks:
-        init_line = block.composite_block.to_source_code()
+    for composite_block in composite_blocks:
+        init_line = composite_block.to_source_code()
         if init_line:
-            code.append(f"        self.{block.label} = {init_line}\n")
+            code.append(f"        self.{composite_block.name} = {init_line}\n")
     
     return code
 
@@ -85,32 +89,33 @@ def generate_model_architecture(model_name, composite_blocks):
 
 def generate_forward_pass(composite_blocks):
     """Generate the forward pass code for the model."""
+    if not composite_blocks:
+        return []
+    
     code = []
     var_names = {}
 
     # Write forward method
     code.append("\n    def forward(self, x):\n")
 
-    # Assign variable names to all blocks
-    for i, block in enumerate(composite_blocks):
+    for i, composite_block in enumerate(composite_blocks):
         var_name = f"x{i}"
         while var_name in block_names:  # Ensure uniqueness
             i += 1
             var_name = f"x{i}"
         block_names.add(var_name)
-        var_names[block] = var_name
+        var_names[composite_block] = var_name
 
     # Generate forward pass code
-    for i, block in enumerate(composite_blocks):
-        input_vars = [var_names[input_block] for input_block in block.inputs]
-        if block.composite_block:
-            line = block.composite_block.forward_expr(input_vars)
+    for i, composite_block in enumerate(composite_blocks):
+        input_vars = [var_names[input_block] for input_block in composite_block.input_composites]
+        line = composite_block.forward_expr(input_vars)
 
-            # Last block → assign to "output"
-            if i == len(composite_blocks) - 1:
-                code.append(f"        output = {line}\n")
-            else:
-                code.append(f"        {var_names[block]} = {line}\n")
+        # Last block → assign to "output"
+        if i == len(composite_blocks) - 1:
+            code.append(f"        output = {line}\n")
+        else:
+            code.append(f"        {var_names[composite_block]} = {line}\n")
 
     code.append("        return output\n")
     return code
@@ -145,7 +150,8 @@ def generate_imports(blocks):
     imports = set()
     for block in blocks:
         if block.composite_block:
-            imports.update(block.composite_block.required_imports())
+            for import_line in block.composite_block.required_imports():
+                imports.add(import_line)
     return list(imports)
 
 ## This could be recursively structured where we dive into a composite block until reaching a block whose children are "leaves" (have no children)
@@ -157,17 +163,17 @@ def generate_models(composite_blocks):
     visited = set()
 
     while q:
-        block = q.popleft()
-        if block.label in visited:
+        composite_block = q.popleft()
+        if composite_block.name in visited:
             continue
-        visited.add(block.label)
+        visited.add(composite_block.name)
 
-        architecture_code = generate_model_architecture(block.composite_block.name, block.composite_block.sub_blocks)
-        forward_pass = generate_forward_pass(block.composite_block.sub_blocks)
+        architecture_code = generate_model_architecture(composite_block.name, composite_block.sub_blocks)
+        forward_pass = generate_forward_pass(composite_block.sub_blocks)
         code.extend(architecture_code)
         code.extend(forward_pass)
         
-        q.extend(block.outputs)
+        q.extend(composite_block.sub_blocks)
     
     return code
 
@@ -187,9 +193,7 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
     code_dir = Path(filename).parent
     code_dir.mkdir(exist_ok=True)
 
-    composite_blocks = [block for block in result if block.run_block is None]
-    # Separate blocks by type
-    run_blocks = [block for block in result if hasattr(block, 'run_block') and block.run_block is not None]
+    composite_blocks = [block.composite_block for block in result]
 
     model_code = generate_models(composite_blocks)
     
@@ -201,7 +205,6 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         # f.write("import torch\n")
         # f.write("import torch.nn as nn\n")
         # f.write("from typing import Dict, Any, List, Tuple\n\n")
-        f.write("import torch.nn as nn\n")
         for import_line in generate_imports(blocks):
             f.write(f"{import_line}\n")
         f.write("\n")
@@ -224,18 +227,18 @@ def _export_running_code_to_file(blocks, filename="run_model.py"):
         f.write("from model_architecture import Model\n\n")
         f.write("\n")
         
-        if run_blocks:
-            run_code = generate_run_code(run_blocks)
-            # Write main function
-            f.write("def main():\n")
+        # if run_blocks:
+        #     run_code = generate_run_code(run_blocks)
+        #     # Write main function
+        #     f.write("def main():\n")
             
-            # Write run code
-            for line in run_code:
-                f.write(f"{line}\n")
+        #     # Write run code
+        #     for line in run_code:
+        #         f.write(f"{line}\n")
             
-            # Add main call
-            f.write("\nif __name__ == '__main__':\n")
-            f.write("    main()\n")
+        #     # Add main call
+        #     f.write("\nif __name__ == '__main__':\n")
+        #     f.write("    main()\n")
 
     print(f"[✔] Model architecture exported to: {model_filename}")
     print(f"[✔] run code exported to: {run_filename}")
