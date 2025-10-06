@@ -22,7 +22,7 @@ The project was created to make **machine learning workflows accessible and intu
 - Designed for interactive education and creative experimentation.  
 
 #### 🔁 Custom Backpropagation Engine  
-- Fully implemented **forward and backward propagation** in NumPy, without relying on PyTorch autograd.  
+- Fully implemented **forward and backward propagation** with a mix of NumPy and PyTorch.  
 - Real-time visualization of gradient flow, weight updates, and error propagation.  
 - Adjustable learning rate, step size, and update frequency for hands-on exploration.  
 
